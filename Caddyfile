@@ -24,3 +24,7 @@ route /api/* {
 	uri replace /api/ /api/v1/
 	reverse_proxy {$OBJECTSTORE_API_ADDRESS}
 }
+
+route /auth/* {
+        reverse_proxy {$KEYCLOAK_ADDRESS}
+}
