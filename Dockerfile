@@ -20,7 +20,7 @@ RUN yarn build
 
 # Stage 1, based on Caddy 2.0, to have only the compiled app, ready for production with Caddy
 FROM caddy/caddy:2.0.0-rc.3
-RUN echo caddy/caddy:2.0.0-rc.3"
+RUN echo "caddy/caddy:2.0.0-rc.3"
 USER root
 
 ENV HTML_ROOT=objectstore-ui
