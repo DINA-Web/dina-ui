@@ -13,8 +13,8 @@ try_files {path}.html {path}
 respond /keycloak.json "{ \"resource\": \"{$KEYCLOAK_CLIENTID}\", \"realm\": \"{$KEYCLOAK_REALM}\", \"auth-server-url\": \"{$KEYCLOAK_PUBLIC_URL}\" }"
 
 # Proxy to the additional Agent API:
-route /api/agent-api/* {
-	uri replace /api/agent-api/ /api/v1/
+route /agent-api/* {
+	uri replace /agent-api/ /api/v1/
 	reverse_proxy {$AGENT_API_ADDRESS}
 }
 
