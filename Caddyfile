@@ -1,4 +1,3 @@
-  
 http://:8080
 
 log stdout
@@ -20,11 +19,7 @@ route /api/agent-api/* {
 }
 
 # Proxy to the main back-end API:
-#route /api/* {
-#	uri replace /api/ /api/v1/
-#	reverse_proxy {$OBJECTSTORE_API_ADDRESS}
-#}
-
 route /api/* {
-        reverse_proxy {$OBJECTSTORE_API_ADDRESS}
+	uri replace /api/ /api/v1/
+	reverse_proxy {$OBJECTSTORE_API_ADDRESS}
 }
