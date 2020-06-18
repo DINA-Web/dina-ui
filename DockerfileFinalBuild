@@ -27,11 +27,10 @@ ENV HTML_ROOT=dina-ui
 ENV OBJECTSTORE_API_ADDRESS=object-store-api-base.dinaui.svc:8080
 ENV AGENT_API_ADDRESS=agent-api-base.dinaui.svc:8080
 
-COPY --from=builder /app/packages/dina-ui/out/ /www/html
+COPY --from=builder /app/packages/dina-ui/out/ /app/packagehtml/dina-ui
 COPY --from=builder /app/packages/seqdb-ui/out/ /app/packagehtml/seqdb-ui
-COPY --from=builder /app/packages/dina-ui/prod.Caddyfile /app/Caddyfile
 
-#COPY Caddyfile /app/Caddyfile
+COPY Caddyfile /app/Caddyfile
 
 RUN chgrp -R 0 /app/ && \
     chmod -R g=u /app/
