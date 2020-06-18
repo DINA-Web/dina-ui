@@ -1,0 +1,44 @@
+# Stage 0, "builder", based on Node.js, to build and compile the frontend
+FROM node:12.16.3 AS  builder
+
+USER root
+RUN mkdir /app
+WORKDIR /app
+COPY package*.json /app/
+
+COPY /tmp/build/inputs/ /app/
+
+WORKDIR /app/packages/dina-ui
+
+RUN yarn
+RUN yarn build
+
+WORKDIR /app/packages/seqdb-ui
+
+RUN yarn
+RUN yarn build
+
+# Stage 1, based on Caddy 2.0, to have only the compiled app, ready for production with Caddy
+FROM caddy/caddy:2.0.0-rc.3
+RUN echo "caddy/caddy:2.0.0-rc.3"
+USER root
+
+ENV HTML_ROOT=dina-ui
+ENV OBJECTSTORE_API_ADDRESS=object-store-api-base.dinaui.svc:8080
+ENV AGENT_API_ADDRESS=agent-api-base.dinaui.svc:8080
+
+COPY --from=builder /app/packages/dina-ui/out/ /app/packagehtml/dina-ui
+COPY --from=builder /app/packages/seqdb-ui/out/ /app/packagehtml/seqdb-ui
+
+COPY Caddyfile /app/Caddyfile
+
+RUN chgrp -R 0 /app/ && \
+    chmod -R g=u /app/
+
+WORKDIR /app
+
+USER 1000250000
+
+EXPOSE 8080
+
+ENTRYPOINT ["caddy","run"]

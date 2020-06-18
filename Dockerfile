@@ -1,43 +1,19 @@
-# Stage 0, "build-stage", based on Node.js, to build and compile the frontend
-FROM node AS  build-stage
-
-USER root
-RUN mkdir /app
-WORKDIR /app
-COPY package*.json /app/
-
-COPY /tmp/build/inputs/ /app/
-
-WORKDIR /app/packages/objectstore-ui
-
+# Build step: try to keep this section the same as in seqdb-ui.Dockerfile
+# so building multiple images at once re-uses the cached node_modules:
+FROM node:12.16.3 as builder
+WORKDIR /dina-ui
+COPY ./package.json ./
+COPY ./packages/common-ui/package.json ./packages/common-ui/package.json
+COPY ./packages/dina-ui/package.json ./packages/dina-ui/package.json
+COPY ./packages/seqdb-ui/package.json ./packages/seqdb-ui/package.json
+COPY ./yarn.lock ./
 RUN yarn
-RUN yarn build
+COPY ./ ./
 
-WORKDIR /app/packages/seqdb-ui
+# dina-ui step:
+RUN yarn --cwd=/dina-ui/packages/dina-ui build
 
-RUN yarn
-RUN yarn build
-
-# Stage 1, based on Caddy 2.0, to have only the compiled app, ready for production with Caddy
 FROM caddy/caddy:2.0.0-rc.3
-RUN echo "caddy/caddy:2.0.0-rc.3"
-USER root
+COPY --from=builder /dina-ui/packages/dina-ui/prod.Caddyfile /etc/caddy/Caddyfile
+COPY --from=builder /dina-ui/packages/dina-ui/out /www/html
 
-ENV HTML_ROOT=objectstore-ui
-ENV EXTERNAL_API_SVC=objectstore-api
-
-COPY --from=build-stage /app/packages/objectstore-ui/out/ /app/packagehtml/objectstore-ui
-COPY --from=build-stage /app/packages/seqdb-ui/out/ /app/packagehtml/seqdb-ui
-
-COPY Caddyfile /app/Caddyfile
-
-RUN chgrp -R 0 /app/ && \
-    chmod -R g=u /app/
-
-WORKDIR /app
-
-USER 1000250000
-
-EXPOSE 8080
-
-ENTRYPOINT ["caddy","run"]
