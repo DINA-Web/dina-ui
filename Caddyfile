@@ -19,7 +19,7 @@ route /api/agent-api/* {
 }
 
 # Proxy to the main back-end API:
-route /api/* {
+route /api/objectstore-api/ * {
 	uri replace /api/ /api/v1/
 	reverse_proxy {$OBJECTSTORE_API_ADDRESS}
 }
