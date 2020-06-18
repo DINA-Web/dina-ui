@@ -20,6 +20,6 @@ route /api/objectstore-api/* {
 
 # Proxy to the additional Agent API:
 route /api/agent-api/* {
-	uri replace /api/agent-api /api/v1/
+	uri replace /api/agent-api /api/v1
 	reverse_proxy {$AGENT_API_ADDRESS}
 }
