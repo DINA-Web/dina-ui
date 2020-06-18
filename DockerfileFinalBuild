@@ -31,7 +31,7 @@ COPY --from=builder /app/packages/dina-ui/out/ /www/html
 COPY --from=builder /app/packages/seqdb-ui/out/ /app/packagehtml/seqdb-ui
 COPY --from=builder /app/packages/dina-ui/prod.Caddyfile /app/Caddyfile
 
-COPY Caddyfile /app/Caddyfile
+#COPY Caddyfile /app/Caddyfile
 
 RUN chgrp -R 0 /app/ && \
     chmod -R g=u /app/
