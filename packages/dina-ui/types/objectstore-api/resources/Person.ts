@@ -1,10 +1,12 @@
 import { KitsuResource } from "kitsu";
 
 export interface AgentAttributes {
-  type: "agent";
+  type: "person";
   displayName: string;
   email: string;
   uuid: string;
+  createdBy?: string;
+  createdOn?: string;
 }
 
-export type Agent = KitsuResource & AgentAttributes;
+export type Person = KitsuResource & AgentAttributes;
