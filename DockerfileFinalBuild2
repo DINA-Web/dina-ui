@@ -8,10 +8,17 @@ COPY /tmp/build/inputs/packages/common-ui/package.json ./packages/common-ui/pack
 COPY /tmp/build/inputs/packages/dina-ui/package.json ./packages/dina-ui/package.json
 COPY /tmp/build/inputs/packages/seqdb-ui/package.json ./packages/seqdb-ui/package.json
 RUN dir
+RUN dir ./packages/common-ui/
+RUN dir ./packages/dina-ui/
+RUN dir ./packages/seqdb-ui
+
 COPY /tmp/build/inputs/yarn.lock ./
 RUN yarn
 COPY /tmp/build/inputs/ ./
 RUN dir
+RUN dir ./packages/common-ui/
+RUN dir ./packages/dina-ui/
+RUN dir ./packages/seqdb-ui
 
 RUN yarn --cwd=/dina-ui/packages/dina-ui build
 
@@ -23,8 +30,8 @@ USER root
 ENV OBJECTSTORE_API_ADDRESS=object-store-api-base.dinaui.svc:8080
 ENV AGENT_API_ADDRESS=agent-api-base.dinaui.svc:8080
 
-COPY --from=builder /app/packages/dina-ui/out/ /www/html
-COPY --from=builder /app/packages/dina-ui/prod.Caddyfile /etc/caddy/Caddyfile
+COPY --from=builder /dina-ui/packages/dina-ui/out/ /www/html
+COPY --from=builder /dina-ui/packages/dina-ui/prod.Caddyfile /etc/caddy/Caddyfile
 
 USER 1000250000
 
