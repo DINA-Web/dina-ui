@@ -7,9 +7,11 @@ COPY /tmp/build/inputs/package.json ./
 COPY /tmp/build/inputs/packages/common-ui/package.json ./packages/common-ui/package.json
 COPY /tmp/build/inputs/packages/dina-ui/package.json ./packages/dina-ui/package.json
 COPY /tmp/build/inputs/packages/seqdb-ui/package.json ./packages/seqdb-ui/package.json
+RUN dir
 COPY /tmp/build/inputs/yarn.lock ./
 RUN yarn
 COPY /tmp/build/inputs/ ./
+RUN dir
 
 RUN yarn --cwd=/dina-ui/packages/dina-ui build
 
