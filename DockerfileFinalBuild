@@ -1,44 +1,19 @@
-# Stage 0, "builder", based on Node.js, to build and compile the frontend
-FROM node:12.16.3 AS  builder
-
-USER root
-RUN mkdir /app
-WORKDIR /app
-COPY package*.json /app/
-
-COPY /tmp/build/inputs/ /app/
-
-WORKDIR /app/packages/dina-ui
-
+# Build step: try to keep this section the same as in seqdb-ui.Dockerfile
+# so building multiple images at once re-uses the cached node_modules:
+FROM node:12.16.3 as builder
+WORKDIR /dina-ui
+COPY ./package.json ./
+COPY ./packages/common-ui/package.json ./packages/common-ui/package.json
+COPY ./packages/dina-ui/package.json ./packages/dina-ui/package.json
+COPY ./packages/seqdb-ui/package.json ./packages/seqdb-ui/package.json
+COPY ./yarn.lock ./
 RUN yarn
-RUN yarn build
+COPY ./packages/ ./packages/
 
-WORKDIR /app/packages/seqdb-ui
+# dina-ui step:
+RUN yarn --cwd=./packages/dina-ui build
 
-RUN yarn
-RUN yarn build
-
-# Stage 1, based on Caddy 2.0, to have only the compiled app, ready for production with Caddy
-FROM caddy/caddy:2.0.0-rc.3
-RUN echo "caddy/caddy:2.0.0-rc.3"
-USER root
-
-ENV HTML_ROOT=dina-ui
-ENV OBJECTSTORE_API_ADDRESS=object-store-api-base.dinaui.svc:8080
-ENV AGENT_API_ADDRESS=agent-api-base.dinaui.svc:8080
-
-COPY --from=builder /app/packages/dina-ui/out/ /app/packagehtml/dina-ui
-COPY --from=builder /app/packages/seqdb-ui/out/ /app/packagehtml/seqdb-ui
-
-COPY Caddyfile /app/Caddyfile
-
-RUN chgrp -R 0 /app/ && \
-    chmod -R g=u /app/
-
-WORKDIR /app
-
-USER 1000250000
-
+FROM caddy/caddy:2.0.0-alpine
+COPY --from=builder /dina-ui/packages/dina-ui/prod.Caddyfile /etc/caddy/Caddyfile
+COPY --from=builder /dina-ui/packages/dina-ui/out /www/html
 EXPOSE 8080
-
-ENTRYPOINT ["caddy","run"]
