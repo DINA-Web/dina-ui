@@ -88,7 +88,7 @@ export function ResourceSelect<TData extends KitsuResource>({
     const { data } = await dataFetch(model, getParams);
 
     // Build the list of options from the returned resources.
-    const resourceOptions = data.map(resource => ({
+    const resourceOptions = data?.map(resource => ({
       label: optionLabel(resource),
       resource,
       value: resource.id
