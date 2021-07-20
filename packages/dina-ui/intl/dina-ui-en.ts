@@ -221,11 +221,6 @@ export const DINAUI_MESSAGES_ENGLISH = {
   field_materialSample_identifierType_catalogueNumber_label: "Catalogue Number",
   field_materialSample_identifierType_materialSampleId_label:
     "Material Sample ID",
-  field_materialSampleType_geological_label: "Geological",
-  field_materialSampleType_mixedSpecimen_label: "Mixed Specimen",
-  field_materialSampleType_molecularSample_label: "Molecular Sample",
-  field_materialSampleType_partialOrganism_label: "Partial Organism",
-  field_materialSampleType_wholeOrganism_label: "Whole Organism",
   field_notPubliclyReleasableReason: "Not Publicly Releasable Reason",
   field_organizationMandatoryFieldsError:
     "At least one orgnization name is required",

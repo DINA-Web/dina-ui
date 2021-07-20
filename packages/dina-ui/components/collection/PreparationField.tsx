@@ -14,6 +14,7 @@ import {
   MaterialSampleType,
   PreparationType
 } from "../../types/collection-api";
+import { useState } from "react";
 
 export interface PreparationFieldProps {
   className?: string;
@@ -47,6 +48,14 @@ export function PreparationField({
   className,
   namePrefix = ""
 }: PreparationFieldProps) {
+  const [showDescription, setShowDescription] = useState(false);
+
+  function onMaterialSampleTypeChanged(selectedValue) {
+    if (selectedValue.name === "Partial Organism") {
+      setShowDescription(true);
+    }
+  }
+
   return (
     <FieldSet
       className={className}
@@ -54,15 +63,18 @@ export function PreparationField({
       legend={<DinaMessage id="preparations" />}
     >
       <div className="row">
-        <ResourceSelectField<MaterialSampleType>
-          name={`${namePrefix}materialSampleType`}
-          customName="materialSampleType"
-          className="col-sm-6"
-          filter={filterBy(["name"])}
-          model="collection-api/material-sample-type"
-          optionLabel={it => it.name}
-          readOnlyLink="/collection/material-sample-type/view?id="
-        />
+        <div className="col-sm-6">
+          <ResourceSelectField<MaterialSampleType>
+            name={`${namePrefix}materialSampleType`}
+            customName="materialSampleType"
+            filter={filterBy(["name"])}
+            model="collection-api/material-sample-type"
+            optionLabel={it => it.name}
+            readOnlyLink="/collection/material-sample-type/view?id="
+            onChange={onMaterialSampleTypeChanged}
+          />
+          {showDescription && <TextField name="description" hideLabel={true} />}
+        </div>
         <ResourceSelectField<Person>
           name={`${namePrefix}preparedBy`}
           customName="preparedBy"
