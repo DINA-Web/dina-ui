@@ -11,8 +11,16 @@ import { MaterialSampleRunActionResult } from "../../../../../dina-ui/types/coll
 import { SPLIT_CHILD_SAMPLE_RUN_ACTION_RESULT_KEY } from "./split-run";
 import { MaterialSampleRunConfig } from "../../../../../dina-ui/types/collection-api/resources/MaterialSampleRunConfig";
 import { SPLIT_CHILD_SAMPLE_RUN_CONFIG_KEY } from "./split-config";
-import { ButtonBar, DinaForm } from "../../../../../common-ui/lib";
+import {
+  ButtonBar,
+  ColumnDefinition,
+  dateCell,
+  DinaForm,
+  ListPageLayout,
+  stringArrayCell
+} from "../../../../../common-ui/lib";
 import { useRouter } from "next/router";
+import { MaterialSample } from "packages/dina-ui/types/collection-api";
 
 export default function SplitRunActionResult() {
   const { formatMessage } = useDinaIntl();
@@ -37,6 +45,21 @@ export default function SplitRunActionResult() {
     </ButtonBar>
   );
 
+  const MATERIAL_SAMPLE_TABLE_COLUMNS: ColumnDefinition<MaterialSample>[] = [
+    {
+      Cell: ({
+        original: { id, materialSampleName, dwcOtherCatalogNumbers }
+      }) => (
+        <Link href={`/collection/material-sample/view?id=${id}`}>
+          {materialSampleName || dwcOtherCatalogNumbers?.join?.(", ") || id}
+        </Link>
+      ),
+      accessor: "materialSampleName"
+    },
+    { accessor: "materialSampleType.name" },
+    dateCell("createdOn")
+  ];
+
   return (
     <div>
       <Head title={formatMessage("workflowCompleteTitle")} />
@@ -47,42 +70,42 @@ export default function SplitRunActionResult() {
         </h1>
 
         <DinaForm initialValues={{}}>
-          <span>
-            <h3>{formatMessage("results")}:</h3>
-            <span className="fw-bold">
-              {formatMessage("originalMaterialSampleLabel")}:
-            </span>
-            <span className="d-flex flex-row">
-              {splitChildSampleRunActionResult?.parentSampleId ? (
-                <span className="d-flex flex-row mx-3">
-                  <Link
-                    href={`/collection/material-sample/view?id=${splitChildSampleRunActionResult?.parentSampleId}`}
-                  >
-                    <a target="_blank">
-                      {splitChildSampleRunConfig?.configure.baseName}
-                    </a>
-                  </Link>
-                </span>
-              ) : (
-                <span className="text-primary mx-3">
+          <h3>{formatMessage("results")}:</h3>
+          <div className="fw-bold">
+            {formatMessage("originalMaterialSampleLabel")}:
+          </div>
+          <span className="">
+            {splitChildSampleRunActionResult?.parentSampleId ? (
+              <span className="mx-3">
+                <Link
+                  href={`/collection/material-sample/view?id=${splitChildSampleRunActionResult?.parentSampleId}`}
+                >
+                  <a target="_blank">
+                    {splitChildSampleRunConfig?.configure.baseName}
+                  </a>
+                  s
+                </Link>
+              </span>
+            ) : (
+              <span className="text-primary mx-3">
+                {" "}
+                {splitChildSampleRunConfig?.configure.baseName}
+              </span>
+            )}
+            {splitChildSampleRunConfig?.configure.destroyOriginal ? (
+              <>
+                <img src="/static/images/originalDestroyed.png" />
+                <span className="text-danger mx-1">
                   {" "}
-                  {splitChildSampleRunConfig?.configure.baseName}
+                  <DinaMessage id="destroyedLabel" />{" "}
                 </span>
-              )}
-              {splitChildSampleRunConfig?.configure.destroyOriginal ? (
-                <>
-                  <img src="/static/images/originalDestroyed.png" />
-                  <span className="text-danger mx-1">
-                    {" "}
-                    <DinaMessage id="destroyedLabel" />{" "}
-                  </span>
-                </>
-              ) : null}
-            </span>
-            <span className="fw-bold">
-              {formatMessage("childMaterialSamplesCreatedLabel")}:
-            </span>
-            {splitChildSampleRunActionResult?.childrenGenerated?.map(
+              </>
+            ) : null}
+          </span>
+          <div className="fw-bold d-flex flex-row justify-content-center ">
+            <span>{formatMessage("childMaterialSamplesCreatedLabel")}:</span>
+          </div>
+          {/* {splitChildSampleRunActionResult?.childrenGenerated?.map(
               (result, idx) => (
                 <span className="d-flex flex-row mx-3" key={idx}>
                   <Link
@@ -92,8 +115,15 @@ export default function SplitRunActionResult() {
                   </Link>
                 </span>
               )
-            )}
-          </span>
+            )} */}
+          <ListPageLayout
+            id="material-sample-list"
+            queryTableProps={{
+              columns: MATERIAL_SAMPLE_TABLE_COLUMNS,
+              path: "collection-api/material-sample",
+              include: "materialSampleType"
+            }}
+          />
           {buttonBar}
         </DinaForm>
       </main>
