@@ -15,23 +15,24 @@ interface AssociatedMaterialSampleSearchBoxProps extends FieldWrapperProps {
 export function AssociatedMaterialSampleSearchBox(
   props: AssociatedMaterialSampleSearchBoxProps
 ) {
-  const { showSearchAssociatedSampleInit } = props;
-  const [showSearchAssociatedSample, setShowSearchAssociatedSample] = useState(
-    showSearchAssociatedSampleInit
-  );
+  const [showSearchBtn, setShowSearchBtn] = useState(true);
 
   const listRef = useRef<HTMLDivElement>(null);
   const { formatMessage } = useDinaIntl();
 
   function onSearchClicked() {
-    setShowSearchAssociatedSample(true);
+    if (listRef.current) {
+      listRef.current.className = listRef.current.className.replaceAll(
+        "d-none",
+        ""
+      );
+    }
   }
 
   function onCloseClicked() {
     if (listRef.current) {
       listRef.current.className = listRef.current.className + " d-none";
     }
-    setShowSearchAssociatedSample(false);
   }
 
   return (
@@ -39,38 +40,39 @@ export function AssociatedMaterialSampleSearchBox(
       <label className="w-100">
         <strong>{formatMessage("associatedMaterialSample")}</strong>{" "}
       </label>
-      {!showSearchAssociatedSample ? (
-        <button
-          type="button"
-          className="btn btn-secondary mb-2 col-md-4 searchSample"
-          onClick={() => onSearchClicked()}
-        >
-          {formatMessage("search") + "..."}
-        </button>
-      ) : (
-        <div>
-          <FieldWrapper {...props} hideLabel={true} disableLabelClick={true}>
-            {({ setValue, value }) => {
-              function onAssociatedSampleSelected(
-                sample: PersistedResource<MaterialSample>
-              ) {
-                // Close the search result list box when a selection is made
-                // so that it is easier for user to see the Add button
-                if (listRef.current) {
-                  listRef.current.className =
-                    listRef.current.className + " d-none";
-                }
-                setValue(sample.id);
-              }
+      <div>
+        {showSearchBtn && (
+          <button
+            type="button"
+            className="btn btn-secondary mb-2 col-md-4 searchSample"
+            onClick={() => onSearchClicked()}
+          >
+            {formatMessage("search") + "..."}
+          </button>
+        )}
+      </div>
+      <div>
+        <FieldWrapper {...props} hideLabel={true} disableLabelClick={true}>
+          {({ setValue, value }) => {
+            function onAssociatedSampleSelected(
+              sample: PersistedResource<MaterialSample>
+            ) {
+              setValue(sample.id);
+              setShowSearchBtn(false);
+            }
 
-              /** Clear the input value */
-              function removeEntry() {
-                setValue(null);
-                setShowSearchAssociatedSample(false);
+            /** Clear the input value */
+            function removeEntry() {
+              setValue(null);
+              if (listRef.current) {
+                listRef.current.className =
+                  listRef.current.className.replaceAll("d-none", "");
               }
+            }
 
-              return (
-                <div className="d-flex flex-column">
+            return (
+              <div className="d-flex flex-column">
+                {!showSearchBtn && (
                   <div className={"d-flex flex-row"}>
                     <div
                       className="flex-md-grow-1 form-control associatedSampleInput"
@@ -89,39 +91,40 @@ export function AssociatedMaterialSampleSearchBox(
                       <RiDeleteBinLine size="1.8em" className="ms-auto" />
                     </button>
                   </div>
-                  <div
-                    ref={listRef}
-                    className={classNames(
-                      "p-2 mt-2",
-                      !showSearchAssociatedSample && "d-none"
-                    )}
-                    style={{ borderStyle: "dashed" }}
-                  >
-                    <div className="mb-4">
-                      <span
-                        className="me-2 fw-bold"
-                        style={{ fontSize: "1.2em" }}
-                      >
-                        {formatMessage("search")}
-                      </span>
-                      <button className="btn btn-dark" onClick={onCloseClicked}>
-                        {formatMessage("closeButtonText")}
-                      </button>
-                    </div>
-                    <SampleListLayout
-                      onSelect={onAssociatedSampleSelected}
-                      classNames="btn btn-primary selectMaterialSample"
-                      btnMsg={formatMessage("select")}
-                      hideTopPagination={true}
-                      hideGroupFilter={true}
-                    />
+                )}
+                <div
+                  ref={listRef}
+                  className={classNames("p-2 mt-2 d-none")}
+                  style={{ borderStyle: "dashed" }}
+                >
+                  <div className="mb-4">
+                    <span
+                      className="me-2 fw-bold"
+                      style={{ fontSize: "1.2em" }}
+                    >
+                      {formatMessage("search")}
+                    </span>
+                    <button
+                      className="btn btn-dark"
+                      type="button"
+                      onClick={onCloseClicked}
+                    >
+                      {formatMessage("closeButtonText")}
+                    </button>
                   </div>
+                  <SampleListLayout
+                    onSelect={onAssociatedSampleSelected}
+                    classNames="btn btn-primary selectMaterialSample"
+                    btnMsg={formatMessage("select")}
+                    hideTopPagination={true}
+                    hideGroupFilter={true}
+                  />
                 </div>
-              );
-            }}
-          </FieldWrapper>
-        </div>
-      )}
+              </div>
+            );
+          }}
+        </FieldWrapper>
+      </div>
     </div>
   );
 }
