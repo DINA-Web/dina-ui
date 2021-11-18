@@ -91,3 +91,7 @@ export interface MaterialSampleRelationships {
 export type MaterialSample = KitsuResource &
   MaterialSampleAttributes &
   MaterialSampleRelationships;
+
+export const ASSOCIATED_SAMPLE_SEARCH_TYPE_NAME_SEARCH ="nameSearch";
+export const ASSOCIATED_SAMPLE_SEARCH_TYPE_MATERIAL_SAMPLE ="materialSample";
+export const ASSOCIATED_SAMPLE_SEARCH_TYPE_TEXT_STRING ="textString";

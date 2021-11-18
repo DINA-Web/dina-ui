@@ -399,6 +399,7 @@ export const DINAUI_MESSAGES_ENGLISH = {
     "Use the following units for auto-conversion: ft, in, ft in, yd, mm, cm, km, pd, po, pd po.",
   moveAllContent: " Move All Content",
   multiple: "Multiple",
+  nameSearch: "Name Search",  
   nestedStorageUnits: "Nested Storage Units",
   noFileToDisplay: "No file to display",
   noGroups: "No Groups",
@@ -510,6 +511,7 @@ export const DINAUI_MESSAGES_ENGLISH = {
   switchToActionType: 'Switch to "{actionType}".',
   tags: "Tags",
   templateNameMandatoryErrorMsg: "Please enter a workflow template name.",
+  textString: "Text String",
   thisWillLoseAllDataEnteredInThisStep:
     "This will lose all data entered in this step.",
   thisWillRemoveYourTemplate:

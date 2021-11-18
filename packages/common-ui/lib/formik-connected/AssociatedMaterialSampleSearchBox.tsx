@@ -2,11 +2,13 @@ import classNames from "classnames";
 import { PersistedResource } from "kitsu";
 import React, { useRef, useState } from "react";
 import { RiDeleteBinLine } from "react-icons/ri";
-import { FieldWrapper, FieldWrapperProps } from "..";
+import { FieldWrapper, FieldWrapperProps, TextField } from "..";
 import { MaterialSampleLink } from "../../../dina-ui/components/collection/MaterialSampleAssociationsField";
 import { useDinaIntl } from "../../../dina-ui/intl/dina-ui-intl";
 import { SampleListLayout } from "../../../dina-ui/pages/collection/material-sample/list";
-import { MaterialSample } from "../../../dina-ui/types/collection-api/resources/MaterialSample";
+import { ASSOCIATED_SAMPLE_SEARCH_TYPE_MATERIAL_SAMPLE, ASSOCIATED_SAMPLE_SEARCH_TYPE_NAME_SEARCH, ASSOCIATED_SAMPLE_SEARCH_TYPE_TEXT_STRING, MaterialSample } from "../../../dina-ui/types/collection-api/resources/MaterialSample";
+import Select from "react-select";
+import { CatalogueOfLifeNameField } from "../../../dina-ui/components/collection";
 
 interface AssociatedMaterialSampleSearchBoxProps extends FieldWrapperProps {
   showSearchAssociatedSampleInit?: boolean;
@@ -15,10 +17,38 @@ interface AssociatedMaterialSampleSearchBoxProps extends FieldWrapperProps {
 export function AssociatedMaterialSampleSearchBox(
   props: AssociatedMaterialSampleSearchBoxProps
 ) {
+  const { formatMessage } = useDinaIntl();
+  type searchTypeValueOptions =
+    | typeof ASSOCIATED_SAMPLE_SEARCH_TYPE_NAME_SEARCH
+    | typeof ASSOCIATED_SAMPLE_SEARCH_TYPE_MATERIAL_SAMPLE
+    | typeof ASSOCIATED_SAMPLE_SEARCH_TYPE_TEXT_STRING;
+
+  const associatedSampleSearchTypeOptions: {
+    label: string;
+    value: searchTypeValueOptions;
+  }[] = [
+    {
+      label: formatMessage(ASSOCIATED_SAMPLE_SEARCH_TYPE_NAME_SEARCH),
+      value: ASSOCIATED_SAMPLE_SEARCH_TYPE_NAME_SEARCH
+    },
+    {
+      label: formatMessage(ASSOCIATED_SAMPLE_SEARCH_TYPE_MATERIAL_SAMPLE),
+      value: ASSOCIATED_SAMPLE_SEARCH_TYPE_MATERIAL_SAMPLE
+    },
+    {
+      label: formatMessage(ASSOCIATED_SAMPLE_SEARCH_TYPE_TEXT_STRING),
+      value: ASSOCIATED_SAMPLE_SEARCH_TYPE_TEXT_STRING
+    }
+  ];
   const [showSearchBtn, setShowSearchBtn] = useState(true);
+  const [searchType, setSearchType] = useState(
+    ASSOCIATED_SAMPLE_SEARCH_TYPE_NAME_SEARCH
+  );
 
   const listRef = useRef<HTMLDivElement>(null);
-  const { formatMessage } = useDinaIntl();
+  
+
+
 
   function onSearchClicked() {
     if (listRef.current) {
@@ -35,20 +65,52 @@ export function AssociatedMaterialSampleSearchBox(
     }
   }
 
+  function onSearchTypeChanged (newValue, _) {
+    setSearchType(newValue?.value);
+  }
+
+  const customStyle = {
+    placeholder: (provided, _) => ({
+      ...provided,
+      color: "rgb(87,120,94)"
+    }),
+    menu: base => ({ ...base, zIndex: 1050 })
+  };
   return (
     <div>
       <label className="w-100">
         <strong>{formatMessage("associatedMaterialSample")}</strong>{" "}
       </label>
-      <div>
-        {showSearchBtn && (
-          <button
-            type="button"
-            className="btn btn-secondary mb-2 col-md-4 searchSample"
-            onClick={() => onSearchClicked()}
-          >
-            {formatMessage("search") + "..."}
-          </button>
+      <div className="list-inline d-flex flex-row gap-2 pt-2">
+        <div className="list-inline-item">
+          <Select
+            options={associatedSampleSearchTypeOptions}
+            onChange={onSearchTypeChanged}
+            defaultValue={associatedSampleSearchTypeOptions[0]}
+            styles={customStyle}
+          />
+        </div>
+        {searchType === ASSOCIATED_SAMPLE_SEARCH_TYPE_NAME_SEARCH && (
+          <div className="list-inline-item">
+            <CatalogueOfLifeNameField name={props.name} removeLabel={true} />
+          </div>
+        )}
+        {searchType === ASSOCIATED_SAMPLE_SEARCH_TYPE_MATERIAL_SAMPLE &&
+          showSearchBtn && (
+            <button
+              type="button"
+              className="btn btn-secondary mb-2 col-md-4 searchSample"
+              onClick={() => onSearchClicked()}
+            >
+              {formatMessage("search") + "..."}
+            </button>
+          )}
+        {searchType === ASSOCIATED_SAMPLE_SEARCH_TYPE_TEXT_STRING && (
+          <TextField
+            className="col-md-4"
+            removeLabel={true}
+            name={props.name}
+          />
         )}
       </div>
       <div>
