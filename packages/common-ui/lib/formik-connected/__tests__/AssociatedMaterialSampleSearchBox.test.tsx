@@ -1,6 +1,7 @@
 import { PersistedResource } from "kitsu";
 import { MaterialSample } from "packages/dina-ui/types/collection-api/resources/MaterialSample";
 import React from "react";
+import Select from "react-select/base";
 import { mountWithAppContext } from "../../test-util/mock-app-context";
 import { AssociatedMaterialSampleSearchBox } from "../AssociatedMaterialSampleSearchBox";
 import { DinaForm } from "../DinaForm";
@@ -56,14 +57,18 @@ describe("AssociatedMaterialSampleSearchBox component", () => {
       testCtx
     );
 
+    wrapper.find(".search-type-select").find(Select).prop<any>("onChange")({
+      value: "materialSample"
+    });    
+
+    await new Promise(setImmediate);
+    wrapper.update();
+
     expect(wrapper.find("button.searchSample")).toBeTruthy();
     wrapper.find("button.searchSample").simulate("click");
 
     await new Promise(setImmediate);
     wrapper.update();
-
-    /* click the search button will show the empty associated sample input */
-    expect(wrapper.find(".associatedSampleInput").length).toBe(1);
 
     /* select one sample from search result list */
     wrapper.find("button.selectMaterialSample").simulate("click");

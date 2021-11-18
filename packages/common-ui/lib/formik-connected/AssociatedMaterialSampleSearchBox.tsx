@@ -52,7 +52,7 @@ export function AssociatedMaterialSampleSearchBox(
 
   function onSearchClicked() {
     if (listRef.current) {
-      listRef.current.className = listRef.current.className.replaceAll(
+      listRef.current.className = listRef.current.className.replace(
         "d-none",
         ""
       );
@@ -88,6 +88,7 @@ export function AssociatedMaterialSampleSearchBox(
             onChange={onSearchTypeChanged}
             defaultValue={associatedSampleSearchTypeOptions[0]}
             styles={customStyle}
+            className="search-type-select"
           />
         </div>
         {searchType === ASSOCIATED_SAMPLE_SEARCH_TYPE_NAME_SEARCH && (
