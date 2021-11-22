@@ -1,9 +1,9 @@
 import { PersistedResource } from "kitsu";
-import { MaterialSample } from "packages/dina-ui/types/collection-api/resources/MaterialSample";
+import { MaterialSample } from "../../../../dina-ui/types/collection-api/resources/MaterialSample";
 import React from "react";
 import Select from "react-select/base";
 import { mountWithAppContext } from "../../test-util/mock-app-context";
-import { AssociatedMaterialSampleSearchBox } from "../AssociatedMaterialSampleSearchBox";
+import { AssociatedMaterialSampleSearchBoxField } from "../AssociatedMaterialSampleSearchBox";
 import { DinaForm } from "../DinaForm";
 
 const mockOnSubmit = jest.fn();
@@ -52,7 +52,7 @@ describe("AssociatedMaterialSampleSearchBox component", () => {
         initialValues={{}}
         onSubmit={({ submittedValues }) => mockOnSubmit(submittedValues)}
       >
-        <AssociatedMaterialSampleSearchBox name={"associatedSample"} />
+        <AssociatedMaterialSampleSearchBoxField name={"associatedSample"} />
       </DinaForm>,
       testCtx
     );
@@ -63,21 +63,22 @@ describe("AssociatedMaterialSampleSearchBox component", () => {
 
     await new Promise(setImmediate);
     wrapper.update();
-
+    
     expect(wrapper.find("button.searchSample")).toBeTruthy();
+
     wrapper.find("button.searchSample").simulate("click");
 
-    await new Promise(setImmediate);
-    wrapper.update();
+    // Search table is shown:
+    expect(wrapper.find(".associated-sample-search").exists()).toEqual(true);   
 
     /* select one sample from search result list */
-    wrapper.find("button.selectMaterialSample").simulate("click");
+    wrapper.find("button.associated-sample-search").simulate("click");
 
     await new Promise(setImmediate);
     wrapper.update();
 
     /* expected the selected sample is being populated to the sample input */
-    expect(wrapper.find(".associatedSampleInput").text()).toEqual(
+    expect(wrapper.find(".associated-sample-link").text()).toEqual(
       "my-sample-name"
     );
   });
