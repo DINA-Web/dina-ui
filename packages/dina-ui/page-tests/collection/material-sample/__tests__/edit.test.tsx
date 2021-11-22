@@ -11,6 +11,7 @@ import {
   CollectingEvent,
   MaterialSample
 } from "../../../../types/collection-api";
+import Select from "react-select/base";
 
 // Mock out the dynamic component, which should only be rendered in the browser
 jest.mock("next/dynamic", () => () => {
@@ -77,10 +78,12 @@ const mockGet = jest.fn<any, any>(async path => {
     case "collection-api/acquisition-event":
       // Populate the linker table:
       return { data: [testAcquisitionEvent()] };
+    case "collection-api/material-sample/1":
+      return { data: testMaterialSample() };
     case "collection-api/material-sample":
       return {
         data: [
-          { id: "1", materialSampleName: "test name", type: "material-sample" }
+          { id: "1", materialSampleName: "my-sample-name", type: "material-sample" }
         ]
       };
     case "collection-api/preparation-type":
@@ -598,7 +601,7 @@ describe("Material Sample Edit Page", () => {
           id: "333",
           materialSampleName: "test-ms",
           associations: [
-            { associatedSample: "test name", associationType: "host" }
+            { associatedSample: "my-sample-name", associationType: "host" }
           ]
         }}
         onSaved={mockOnSaved}
@@ -1158,4 +1161,56 @@ describe("Material Sample Edit Page", () => {
     // Form submitted successfully:
     expect(mockOnSaved).lastCalledWith("11111111-1111-1111-1111-111111111111");
   });
+
+  it("Add the associated sample selected from search result list to a new association  .", async () => {
+    //Mount a new material sample with no values
+    const wrapper = mountWithAppContext(
+      <MaterialSampleForm onSaved={mockOnSaved} />,
+      testCtx
+    );
+
+    await new Promise(setImmediate);
+    wrapper.update();
+
+    // Enable association:
+    wrapper
+      .find(".enable-associations")
+      .find(ReactSwitch)
+      .prop<any>("onChange")(true);
+
+    await new Promise(setImmediate);
+    wrapper.update();
+
+    // Add a new association
+    wrapper.find("button.add-button").simulate("click");
+    await new Promise(setImmediate);
+    wrapper.update();
+
+    // Select Material Sample from the search type dropdown
+    wrapper.find(".search-type-select").find(Select).prop<any>("onChange")({
+      value: "materialSample"
+    });
+
+    await new Promise(setImmediate);
+    wrapper.update();
+
+    expect(wrapper.find("button.searchSample")).toBeTruthy();
+
+    // Click the search button to find from a material sample list
+    wrapper.find("button.searchSample").simulate("click");
+
+    // Search table is shown:
+    expect(wrapper.find(".associated-sample-search").exists()).toEqual(true);
+
+    // Select one sample from search result list 
+    wrapper.find("button.associated-sample-search").simulate("click");
+
+    await new Promise(setImmediate);
+    wrapper.update();
+
+    // Expect the selected sample being populated to the sample input     
+    expect(wrapper.find(".associated-sample-link").text()).toEqual(
+      "my-sample-name"
+    );
+  }); 
 });

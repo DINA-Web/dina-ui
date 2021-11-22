@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { Dispatch, SetStateAction, useRef, useState } from "react";
 import { RiDeleteBinLine } from "react-icons/ri";
 import { FieldWrapper, FieldWrapperProps, FieldWrapperRenderProps, TextField } from "..";
 import { MaterialSampleLink } from "../../../dina-ui/components/collection/MaterialSampleAssociationsField";
@@ -10,9 +10,12 @@ import { CatalogueOfLifeNameField } from "../../../dina-ui/components/collection
 import { PersistedResource } from "kitsu";
 import classNames from "classnames";
 
-export function AssociatedMaterialSampleSearchBoxField(
-  props: FieldWrapperProps
-) {  
+export function AssociatedMaterialSampleSearchBoxField({
+  setShowSearchBtn,
+  showSearchBtn,
+  listRef,
+  props
+}) {
   const { formatMessage } = useDinaIntl();
   type searchTypeValueOptions =
     | typeof ASSOCIATED_SAMPLE_SEARCH_TYPE_NAME_SEARCH
@@ -36,12 +39,10 @@ export function AssociatedMaterialSampleSearchBoxField(
       value: ASSOCIATED_SAMPLE_SEARCH_TYPE_TEXT_STRING
     }
   ];
-  const [showSearchBtn, setShowSearchBtn] = useState(true);
+  
   const [searchType, setSearchType] = useState(
     ASSOCIATED_SAMPLE_SEARCH_TYPE_NAME_SEARCH
   );
-
-  const listRef = useRef<HTMLDivElement>(null);
 
   function onSearchClicked() {
     if (listRef.current) {
@@ -50,11 +51,9 @@ export function AssociatedMaterialSampleSearchBoxField(
         ""
       );
     }
-
   }
 
-
-  function onSearchTypeChanged (newValue, _) {
+  function onSearchTypeChanged(newValue, _) {
     setSearchType(newValue?.value);
   }
 
@@ -86,8 +85,13 @@ export function AssociatedMaterialSampleSearchBoxField(
             <CatalogueOfLifeNameField name={props.name} removeLabel={true} />
           </div>
         )}
-        {searchType === ASSOCIATED_SAMPLE_SEARCH_TYPE_MATERIAL_SAMPLE &&
-          <FieldWrapper {...props} removeLabel= {true} removeLabelTag ={true} disableLabelClick={true}>
+        {searchType === ASSOCIATED_SAMPLE_SEARCH_TYPE_MATERIAL_SAMPLE && (
+          <FieldWrapper
+            {...props}
+            removeLabel={true}
+            removeLabelTag={true}
+            disableLabelClick={true}
+          >
             {({ setValue, value }) => {
               function onAssociatedSampleSelected(
                 sample: PersistedResource<MaterialSample>
@@ -106,23 +110,20 @@ export function AssociatedMaterialSampleSearchBoxField(
               }
               return (
                 <>
-                  <div className={ "row mb-2"}>
+                  <div className={"row mb-2"}>
                     {showSearchBtn ? (
-                        <button
-                          type="button"
-                          className="btn btn-secondary form-control  searchSample"
-                          onClick={() => (
-                            onSearchClicked()
-                          )}
-                        >
-                          {formatMessage("search") + "..."}
-                        </button>
-
+                      <button
+                        type="button"
+                        className="btn btn-secondary form-control  searchSample"
+                        onClick={() => onSearchClicked()}
+                      >
+                        {formatMessage("search") + "..."}
+                      </button>
                     ) : (
                       <div className="d-flex flex-row">
                         <div
                           className="form-control associated-sample-link"
-                          style={{ backgroundColor: "#e9ecef"}}
+                          style={{ backgroundColor: "#e9ecef" }}
                         >
                           {value && <MaterialSampleLink id={value} />}
                         </div>
@@ -139,14 +140,11 @@ export function AssociatedMaterialSampleSearchBoxField(
                       </div>
                     )}
                   </div>
-                  <MaterialSampleSearchHelper
-                    listRef={listRef}
-                    onAssociatedSampleSelected={onAssociatedSampleSelected}
-                  />
                 </>
               );
             }}
-          </FieldWrapper>}       
+          </FieldWrapper>
+        )}
 
         {searchType === ASSOCIATED_SAMPLE_SEARCH_TYPE_TEXT_STRING && (
           <TextField

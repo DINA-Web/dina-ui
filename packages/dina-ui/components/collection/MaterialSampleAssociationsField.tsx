@@ -1,13 +1,15 @@
 import classNames from "classnames";
 import {
   AssociatedMaterialSampleSearchBoxField,
+  MaterialSampleSearchHelper,
   TextField,
   useDinaFormContext,
   useQuery,
   withResponse
 } from "common-ui";
+import { PersistedResource } from "kitsu";
 import Link from "next/link";
-import React from "react";
+import React, { useRef, useState } from "react";
 import { VocabularyReadOnlyView, VocabularySelectField } from "..";
 import {
   MaterialSample,
@@ -15,6 +17,7 @@ import {
 } from "../../../dina-ui/types/collection-api/resources/MaterialSample";
 import { DinaMessage, useDinaIntl } from "../../intl/dina-ui-intl";
 import { TabbedArrayField, TabPanelCtx } from "./TabbedArrayField";
+import { useFormikContext } from "formik";
 
 /** Type-safe object with all MaterialSampleAssociation fields. */
 export const MATERIALSAMPLE_ASSOCIATION_FIELDS_OBJECT: Required<
@@ -80,24 +83,43 @@ export function MaterialSampleAssociationsField({
 function AssociationTabPanel({
   fieldProps
 }: TabPanelCtx<MaterialSampleAssociation>) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const [showSearchBtn, setShowSearchBtn] = useState(true);
+  const formikCtx = useFormikContext<MaterialSampleAssociation>();
+
+  function onAssociatedSampleSelected(
+    sample: PersistedResource<MaterialSample>    
+  ) {
+    formikCtx.setFieldValue(fieldProps("associatedSample").name, sample.id);
+    setShowSearchBtn(false);
+  }
   return (
     <div>
       <div className="row">
-        <div className="col-sm-6 association-type">
-          <VocabularySelectField
-            {...fieldProps("associationType")}
-            path="collection-api/vocabulary/associationType"
-          />
+        <div className="col-sm-6">
+          <div className="association-type">
+            <VocabularySelectField
+              {...fieldProps("associationType")}
+              path="collection-api/vocabulary/associationType"
+            />
+          </div>
+          <div className="associated-sample">
+            <AssociatedMaterialSampleSearchBoxField
+              setShowSearchBtn={setShowSearchBtn}
+              showSearchBtn={showSearchBtn}
+              listRef={listRef}
+              props={fieldProps("associatedSample")}
+            />
+          </div>
         </div>
         <div className="col-sm-6">
           <TextField {...fieldProps("remarks")} multiLines={true} />
         </div>
       </div>
-      <div className="associated-sample">
-        <AssociatedMaterialSampleSearchBoxField
-          {...fieldProps("associatedSample")}
-        />
-      </div>
+      <MaterialSampleSearchHelper
+        listRef={listRef}
+        onAssociatedSampleSelected={onAssociatedSampleSelected}
+      />
     </div>
   );
 }
