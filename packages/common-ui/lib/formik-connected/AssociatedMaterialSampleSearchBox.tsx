@@ -50,13 +50,9 @@ export function AssociatedMaterialSampleSearchBoxField(
         ""
       );
     }
+
   }
 
-  function onCloseClicked() {
-    if (listRef.current) {
-      listRef.current.className = listRef.current.className + " d-none";
-    }
-  }
 
   function onSearchTypeChanged (newValue, _) {
     setSearchType(newValue?.value);
@@ -91,7 +87,7 @@ export function AssociatedMaterialSampleSearchBoxField(
           </div>
         )}
         {searchType === ASSOCIATED_SAMPLE_SEARCH_TYPE_MATERIAL_SAMPLE &&
-          <FieldWrapper {...props} hideLabel={true} disableLabelClick={true}>
+          <FieldWrapper {...props} removeLabel= {true} removeLabelTag ={true} disableLabelClick={true}>
             {({ setValue, value }) => {
               function onAssociatedSampleSelected(
                 sample: PersistedResource<MaterialSample>
@@ -109,68 +105,48 @@ export function AssociatedMaterialSampleSearchBoxField(
                 }
               }
               return (
-                <div className="row">
-                  {showSearchBtn ? (
-                    <button
-                      type="button"
-                      className="btn btn-secondary searchSample"
-                      onClick={() => onSearchClicked()}
-                    >
-                      {formatMessage("search") + "..."}
-                    </button>
-                  ) : (
-                    <div className={"d-flex flex-row"}>
-                      <div
-                        className="flex-md-grow-1 form-control associated-sample-link"
-                        style={{ backgroundColor: "#e9ecef" }}
-                      >
-                        {value && <MaterialSampleLink id={value} />}
+                <>
+                  <div className={ "row mb-2"}>
+                    {showSearchBtn ? (
+                        <button
+                          type="button"
+                          className="btn btn-secondary form-control  searchSample"
+                          onClick={() => (
+                            onSearchClicked()
+                          )}
+                        >
+                          {formatMessage("search") + "..."}
+                        </button>
+
+                    ) : (
+                      <div className="d-flex flex-row">
+                        <div
+                          className="form-control associated-sample-link"
+                          style={{ backgroundColor: "#e9ecef"}}
+                        >
+                          {value && <MaterialSampleLink id={value} />}
+                        </div>
+                        <button
+                          className="btn"
+                          onClick={removeEntry}
+                          type="button"
+                          style={{
+                            cursor: "pointer"
+                          }}
+                        >
+                          <RiDeleteBinLine size="1.8em" className="ms-auto" />
+                        </button>
                       </div>
-                      <button
-                        className="btn mb-2"
-                        onClick={removeEntry}
-                        type="button"
-                        style={{
-                          cursor: "pointer"
-                        }}
-                      >
-                        <RiDeleteBinLine size="1.8em" className="ms-auto" />
-                      </button>
-                    </div>
-                  )}
-                  <div
-                    ref={listRef}
-                    className={classNames("p-2 mt-2 d-none")}
-                    style={{ borderStyle: "dashed" }}
-                  >
-                    <div className="mb-4">
-                      <span
-                        className="me-2 fw-bold"
-                        style={{ fontSize: "1.2em" }}
-                      >
-                        {formatMessage("search")}
-                      </span>
-                      <button
-                        className="btn btn-dark"
-                        type="button"
-                        onClick={onCloseClicked}
-                      >
-                        {formatMessage("closeButtonText")}
-                      </button>
-                    </div>
-                    <SampleListLayout
-                      onSelect={onAssociatedSampleSelected}
-                      classNames="btn btn-primary associated-sample-search"
-                      btnMsg={formatMessage("select")}
-                      hideTopPagination={true}
-                      hideGroupFilter={true}
-                    />
+                    )}
                   </div>
-                </div>
+                  <MaterialSampleSearchHelper
+                    listRef={listRef}
+                    onAssociatedSampleSelected={onAssociatedSampleSelected}
+                  />
+                </>
               );
             }}
-          </FieldWrapper>}
-        
+          </FieldWrapper>}       
 
         {searchType === ASSOCIATED_SAMPLE_SEARCH_TYPE_TEXT_STRING && (
           <TextField
@@ -180,6 +156,41 @@ export function AssociatedMaterialSampleSearchBoxField(
           />
         )}
       </div>
+    </div>
+  );
+}
+
+export function MaterialSampleSearchHelper({
+  listRef,
+  onAssociatedSampleSelected
+}) {
+  const { formatMessage } = useDinaIntl();
+  function onCloseClicked() {
+    if (listRef.current) {
+      listRef.current.className = listRef.current.className + " d-none";
+    }
+  }
+  return (
+    <div
+      ref={listRef}
+      className={classNames("p-2 mt-2 d-none")}
+      style={{ borderStyle: "dashed" }}
+    >
+      <div className="mb-4">
+        <span className="me-2 fw-bold" style={{ fontSize: "1.2em" }}>
+          {formatMessage("search")}
+        </span>
+        <button className="btn btn-dark" type="button" onClick={onCloseClicked}>
+          {formatMessage("closeButtonText")}
+        </button>
+      </div>
+      <SampleListLayout
+        onSelect={onAssociatedSampleSelected}
+        classNames="btn btn-primary associated-sample-search"
+        btnMsg={formatMessage("select")}
+        hideTopPagination={true}
+        hideGroupFilter={true}
+      />
     </div>
   );
 }
