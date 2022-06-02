@@ -19,7 +19,7 @@ body {
 }
 a {
   /* need this to resolve 23 link color ratio issuses*/
-  color: #0000cc;
+  color: #1e8c45;
   text-decoration: underline;
 }
 .form-control::placeholder {
@@ -155,27 +155,27 @@ main .pagedetails {
   margin-right: 0;
 }
 body .btn-primary {
-  background-color: #335075;
-  border-color: #335075;
+  background-color: #1e8c45;
+  border-color: #1e8c45;
 }
 a.btn,
 .nav a {
   text-decoration: none;
 }
 .btn-primary:hover {
-  background-color: #1c578a;
+  background-color: #18666d;
   border-color: #091c2d;
   color: #fff;
 }
 .btn-default {
   background-color: #eaebed;
   border-color: #dcdee1;
-  color: #335075;
+  color: #1e8c45;
 }
 .btn-default:hover {
-  background-color: #cfd1d5;
+  background-color: #18666d;
   border-color: #bbbfc5;
-  color: #335075;
+  color: #1e8c45;
 }
 
 /*
@@ -211,7 +211,7 @@ a.btn,
 /* Custom style to mimic Canada.ca */
 
 .header-b-line {
-  border-bottom: 3px solid #38414d;
+  border-bottom: 3px solid #0f5a33;
   margin-bottom: 45px;
 }
 
@@ -378,8 +378,8 @@ a.btn,
 
 .btn-info {
   color: white;
-  background-color: #117c8d;
-  border-color: #117c8d;
+  background-color: #1e8c45; /*#117c8d;*/
+  border-color: #1e8c45; /*#117c8d;*/
 }
 
 .btn-info:hover {

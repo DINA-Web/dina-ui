@@ -57,7 +57,7 @@ export const DINAUI_MESSAGES_FRENCH: Partial<typeof DINAUI_MESSAGES_ENGLISH> = {
   allowDuplicate: "Permettre les copies",
   allowExisting: "Autoriser l’existant",
   allowNew: "Autoriser le nouveau",
-  appTitle: "DINA",
+  appTitle: "Demo",
   assignContentsToNewStorage: "Assigner le contenu au nouveau stockage",
   assignedStorage: "Stockage assigné",
   assignedTo: "Attribué à",

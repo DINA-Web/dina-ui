@@ -16,6 +16,8 @@ body {
 .logo {
   margin-top: 35px;
   max-height: 35px;
+  min-height: 60px;
+  width: auto;
 }
 
 .btn-link {

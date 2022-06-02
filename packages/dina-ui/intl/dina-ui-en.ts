@@ -58,7 +58,7 @@ export const DINAUI_MESSAGES_ENGLISH = {
   allowDuplicate: "Allow Duplicate",
   allowExisting: "Allow Existing",
   allowNew: "Allow New",
-  appTitle: "DINA",
+  appTitle: "Demo",
   assignContentsToNewStorage: "Assign Contents to New Storage",
   assignedStorage: "Assigned Storage",
   assignedTo: "Assigned To",
@@ -398,7 +398,7 @@ export const DINAUI_MESSAGES_ENGLISH = {
   filterByGroup: "Filter By Group",
   filterPredicate: "Filter Predicate",
   filterValue: "Filter Value",
-  footerContactInfo: "Contact information",
+  footerContactInfo: "Contact us",
   footerPrivacy: "Privacy",
   footerTermsAndConditions: "Terms and conditions",
   forTestingPurposesOnlyMessage:

@@ -108,7 +108,8 @@ function FeedbackButton() {
     <Button
       variant="link"
       className="px-0"
-      href="https://github.com/AAFC-BICoE/dina-planning/issues/new?labels=demo%20feedback"
+      href="https://github.com/DINA-Web/dina-demo/issues/new?labels=demo%20feedback"
+	  target="_blank"
     >
       <DinaMessage id="feedbackButtonText" />
     </Button>
@@ -133,7 +134,7 @@ function GovernmentLogo() {
   return (
     <>
       <img
-        src={"/static/images/canadaLogo_" + locale + ".svg"}
+        src={"/static/images/dina_logo_horizontal.png"}
         property="logo"
         alt=""
         className="logo"
@@ -404,20 +405,25 @@ export function Footer() {
             <nav className="col-md-10 ftr-urlt-lnk py-3">
               <ul>
                 <li>
-                  <a href="https://www.canada.ca/en/contact.html">
+                  <a href="mailto:info@dina-project.net">
                     <DinaMessage id="footerContactInfo" />
                   </a>
                 </li>
                 <li>
-                  <a href="https://www.canada.ca/en/transparency/terms.html">
+                  <a href="#">
                     <DinaMessage id="footerTermsAndConditions" />
                   </a>
                 </li>
                 <li>
-                  <a href="https://www.canada.ca/en/transparency/privacy.html">
+                  <a href="#">
                     <DinaMessage id="footerPrivacy" />
                   </a>
                 </li>
+				<li>
+					<a href="https://dina-project.net" title="DINA Website" target="_blank">https://dina-project.net
+					</a>
+				</li>
+	
               </ul>
               <div>
                 {process.env.UI_APP_VERSION && (
@@ -429,11 +435,13 @@ export function Footer() {
               </div>
             </nav>
             <div className="col-6 col-md-3 col-lg-2 text-end pt-2">
-              <img
-                src="https://www.canada.ca/etc/designs/canada/cdts/gcweb/v4_0_32/assets/wmms-blk.svg"
-                alt={formatMessage("governmentOfCanadaSymbol")}
-                className="mt-4"
-              />
+              <a href="https://dina-project.net" title="DINA Website" target="_blank">
+				  <img
+					src="/static/images/dina_logo_horizontal.png"
+					alt="DINA Logo"
+					className="mt-4"
+				  />
+			  </a>
             </div>
           </div>
         </Container>

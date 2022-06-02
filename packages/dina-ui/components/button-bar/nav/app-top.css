@@ -29,7 +29,7 @@
 
   /*Menu bar - links*/
   #wb-sm .menu > li > a {
-    color: #335075;
+    color: #1e8c45;
     font-weight: bold;
     padding-bottom: calc(1em - 1px);
     padding-top: calc(1em - 1px);
@@ -55,7 +55,7 @@
   #wb-sm .menu > li > .active,
   #wb-sm .menu > li > .selected,
   #wb-sm .menu > li > .wb-navcurr {
-    color: #335075 !important;
+    color: #1e8c45 !important;
   }
 
   /*Menu bar + dropdown - link background highlight colour*/
@@ -88,7 +88,7 @@
 
   /*App bar*/
   .app-bar {
-    background: #38414d;
+    background: #0f5a33 /*#38414d*/;
     margin-top: 5px;
   }
 
@@ -116,7 +116,7 @@
   .app-list-account .btn,
   .app-list-account .btn:visited {
     background-color: #fff;
-    color: #335075;
+    color: #1e8c45;
   }
 
   .app-list-account .btn:not([href]),
@@ -194,7 +194,7 @@
 
   .app-list-main .btn,
   .app-list-main .btn:visited {
-    background-color: #335075;
+    background-color: #1e8c45;
     color: #fff;
   }
 
