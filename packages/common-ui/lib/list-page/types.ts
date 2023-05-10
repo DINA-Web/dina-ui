@@ -28,6 +28,18 @@ export interface TableColumn<TData extends KitsuResource>
    * Is this attribute considered a keyword in elastic search. Required for filtering and sorting.
    */
   isKeyword?: boolean;
+
+  /**
+   * The QueryPage will only display the accessors that are displayed on the result table. However,
+   * if you have custom cells that receive other fields you will need to add them to this list so
+   * elastic search includes the fields in the result.
+   *
+   * Example: `data.attributes.name`
+   *
+   * Please note that duplicate fields are automatically removed so you don't need to worry about
+   * having unique accessors.
+   */
+  additionalAccessors?: string[];
 }
 
 /**
@@ -72,6 +84,27 @@ export interface ESIndexMapping {
   distinctTerm: boolean;
 
   /**
+   * If enabled it will allow the user to search based on the starting of a word.
+   *
+   * Example: Hexapoda can be matched with "hex".
+   */
+  startsWithSupport: boolean;
+
+  /**
+   * If enabled it will allow the user to search based in the middle of a word.
+   *
+   * Example: Hexapoda can be matched with "pod".
+   */
+  containsSupport: boolean;
+
+  /**
+   * If enabled it will allow the user to search based on the ending of a word.
+   *
+   * Example: Hexapoda can be matched with "poda".
+   */
+  endsWithSupport: boolean;
+
+  /**
    * The path for the attribute without the attribute name. This path does not include the parent
    * path.
    *
@@ -92,56 +125,108 @@ export interface ESIndexMapping {
    * attributes under the same relationship together in the search. This name will also be used to
    * display text of the group.
    *
-   * Example: organism
+   * This text should match the user-friendly label in the locales files. It will be searched using
+   * title_[parentName].
+   *
+   * Example: preparationMethod (and the label will be `title_preparationMethod`)
    */
   parentName?: string;
+
+  /**
+   * The parent type is the relationship type to be used. This will be used for elastic search
+   * filtering. The reason this is used since the same field can be used for multiple relationships.
+   *
+   * Example: preparation-method
+   */
+  parentType?: string;
+
+  /**
+   * Only provided if it was added using a dynamic field config.
+   */
+  dynamicField?: DynamicField;
 }
 
 /**
- * Used to determine what type to display for a query row.
+ * Each type on the query builder has a function that is used to transform the query builder row
+ * into elastic search logic.
+ *
+ * @see QueryBuilderElasticSearchExport
+ * @see QueryRowTextSearch
  */
-export interface TypeVisibility {
-  /** Display a text box only */
-  isText: boolean;
+export interface TransformToDSLProps {
+  /**
+   * The query builder type, not really used but required in the function for the QueryBuilder
+   * library.
+   *
+   * For the Elastic Search type you can use the fieldInfo.type instead.
+   */
+  queryType: string;
 
-  /** Display a text box with a dropdown of suggestions based on distinct elastic search values. */
-  isSuggestedText: boolean;
+  /**
+   * The value to search against. If the type is "text" then this is the text that will be filtered.
+   */
+  value: string;
 
-  /** Display a dropdown with true or false. */
-  isBoolean: boolean;
+  /**
+   * The operation being performed.
+   *
+   * For example:
+   * "equals", "notEquals", "containsText"
+   *
+   * Operators are defined in the QueryBuilderConfig file.
+   */
+  operation: string;
 
-  /** Display a text box with number input only. */
-  isNumber: boolean;
+  /**
+   * This field path is the unique path given to each item in the field list.
+   *
+   * For getting the proper absolute field path, use the FieldInfo to generate it.
+   */
+  fieldPath: string;
 
-  /** Display a text box with date picker. */
-  isDate: boolean;
+  /**
+   * The elastic search mapping for the field.
+   */
+  fieldInfo?: ESIndexMapping;
+}
+
+export type DynamicFieldType = "managedAttribute" | "fieldExtension";
+
+export interface DynamicFieldsMappingConfig {
+  /** Attribute level dynamic fields */
+  fields: DynamicField[];
+
+  /** Dynamic fields for relationships */
+  relationshipFields: RelationshipDynamicField[];
+}
+
+export interface DynamicField {
+  /**
+   * Option label that should be used.
+   */
+  label: string;
+
+  type: DynamicFieldType;
+
+  path: string;
+
+  /**
+   * Endpoint where these dynamic fields can be retrieved to list.
+   *
+   * Example: "collection-api/managed-attribute"
+   */
+  apiEndpoint: string;
+
+  /**
+   * Optional field to indicate which Managed Attributes or Field Extensions should be listed.
+   */
+  component?: string;
 }
 
 /**
- * The Match Type values. This will be used for dropdown inputs.
+ * Configuration for where the Dynamic Field can be found within the relationship index mapping.
  */
-export type QueryRowMatchValue = "match" | "term";
-
-/**
- * The Match Type labels. What will be displayed to the user.
- */
-export type QueryRowMatchType = "PARTIAL_MATCH" | "EXACT_MATCH" | "BLANK_FIELD";
-
-/**
- * Boolean values to be displayed in the dropdown.
- */
-export type QueryRowBooleanType = "TRUE" | "FALSE";
-
-/**
- * The types that will be considered a number and use the number type.
- */
-export type QueryRowNumberType =
-  | "long"
-  | "short"
-  | "integer"
-  | "byte"
-  | "double"
-  | "float"
-  | "half_float"
-  | "scaled_float"
-  | "unsigned_long";
+export interface RelationshipDynamicField extends DynamicField {
+  referencedBy: string;
+  referencedType: string;
+}

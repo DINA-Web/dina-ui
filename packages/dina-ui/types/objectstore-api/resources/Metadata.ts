@@ -1,7 +1,8 @@
 import { KitsuResource, PersistedResource } from "kitsu";
 import { Person } from "../../agent-api/resources/Person";
+import { DinaJsonMetaInfo } from "../../DinaJsonMetaInfo";
 import { Derivative } from "./Derivative";
-import { ManagedAttributeMap } from "./ManagedAttributeMap";
+import { License } from "./License";
 import { DcType } from "./ObjectUpload";
 
 export interface MetadataAttributes {
@@ -14,6 +15,9 @@ export interface MetadataAttributes {
   xmpRightsWebStatement?: string;
   xmpRightsUsageTerms?: string;
   xmpRightsOwner?: string;
+
+  // Client-side only fields, delete before submitting to back-end
+  license?: License;
 
   // optional fields
   group?: string;
@@ -35,10 +39,13 @@ export interface MetadataAttributes {
   acHashValue?: string;
 
   resourceExternalURL?: string;
+
+  // Used for permission information included on the request.
+  meta?: DinaJsonMetaInfo;
 }
 
 export interface MetadataRelationships {
-  acMetadataCreator?: Person | KitsuResource | null;
+  acMetadataCreator?: Person | KitsuResource;
   dcCreator?: Person | KitsuResource | null;
   managedAttributes?: Record<string, string | null | undefined>;
   derivatives?: PersistedResource<Derivative>[] | null;

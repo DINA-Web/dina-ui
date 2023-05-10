@@ -1,4 +1,8 @@
-import { CheckBoxWithoutWrapper, useDinaFormContext } from "common-ui";
+import {
+  CheckBoxWithoutWrapper,
+  FieldSet,
+  useDinaFormContext
+} from "common-ui";
 import { Field } from "formik";
 import { clamp } from "lodash";
 import { ChangeEvent, useRef } from "react";
@@ -6,6 +10,7 @@ import { GeoReferenceAssertionRow } from "..";
 import { DinaMessage, useDinaIntl } from "../../intl/dina-ui-intl";
 import {
   CollectingEvent,
+  COLLECTING_EVENT_COMPONENT_NAME,
   GeoReferenceAssertion
 } from "../../types/collection-api";
 import { TabbedArrayField } from "./TabbedArrayField";
@@ -26,7 +31,7 @@ export function GeoReferenceAssertionField({
   ) {
     wrapperRef.current
       ?.querySelectorAll(`#${id} .templateCheckBox`)
-      ?.forEach(field => {
+      ?.forEach((field) => {
         // tslint:disable-next-line
         form.setFieldValue(field.attributes["name"]?.value, e.target.checked);
       });
@@ -37,47 +42,59 @@ export function GeoReferenceAssertionField({
   const intialPrimaryAssertionIndex = clamp(
     (
       initialValues as Partial<CollectingEvent>
-    ).geoReferenceAssertions?.findIndex(assertion => assertion?.isPrimary) ?? 0,
+    ).geoReferenceAssertions?.findIndex((assertion) => assertion?.isPrimary) ??
+      0,
     0,
     Infinity
   );
 
   return (
     <div ref={wrapperRef}>
-      <TabbedArrayField<GeoReferenceAssertion>
-        className="non-strip"
-        typeName={formatMessage("geoReferenceAssertion")}
+      <FieldSet
         legend={<DinaMessage id="geoReferencingLegend" />}
-        renderAboveTabs={() =>
-          isTemplate && (
-            <Field name="includeAllGeoReference">
-              {() => (
-                <CheckBoxWithoutWrapper
-                  name="includeAllGeoReference"
-                  parentContainerId="geoReferencingLegend"
-                  onClickIncludeAll={onClickIncludeAll}
-                  includeAllLabel={formatMessage("includeAll")}
-                  customLayout={["col-sm-1", "col-sm-4"]}
-                />
-              )}
-            </Field>
-          )
-        }
-        makeNewElement={({ length }) => ({ isPrimary: length === 0 })}
-        name="geoReferenceAssertions"
-        sectionId="georeference-assertion-section"
-        initialIndex={intialPrimaryAssertionIndex}
-        onChangeTabIndex={onChangeTabIndex}
-        renderTab={(assertion, index) => (
-          <span className="m-3">
-            {index + 1}
-            {assertion.isPrimary && ` (${formatMessage("primary")})`}
-          </span>
-        )}
-        renderTabPanel={({ elements, index }) => (
-          <GeoReferenceAssertionRow assertion={elements[index]} index={index} />
-        )}
-      />
+        id="geoReferencingLegend"
+        componentName={COLLECTING_EVENT_COMPONENT_NAME}
+        sectionName="georeferencing-section"
+        className="non-strip"
+      >
+        <TabbedArrayField<GeoReferenceAssertion>
+          className="non-strip"
+          typeName={formatMessage("geoReferenceAssertion")}
+          legend={<DinaMessage id="geoReferencingLegend" />}
+          renderAboveTabs={() =>
+            isTemplate && (
+              <Field name="includeAllGeoReference">
+                {() => (
+                  <CheckBoxWithoutWrapper
+                    name="includeAllGeoReference"
+                    parentContainerId="geoReferencingLegend"
+                    onClickIncludeAll={onClickIncludeAll}
+                    includeAllLabel={formatMessage("includeAll")}
+                    customLayout={["col-sm-1", "col-sm-4"]}
+                  />
+                )}
+              </Field>
+            )
+          }
+          makeNewElement={({ length }) => ({ isPrimary: length === 0 })}
+          name="geoReferenceAssertions"
+          sectionId="georeference-assertion-section"
+          initialIndex={intialPrimaryAssertionIndex}
+          onChangeTabIndex={onChangeTabIndex}
+          renderTab={(assertion, index) => (
+            <span className="m-3">
+              {index + 1}
+              {assertion.isPrimary && ` (${formatMessage("primary")})`}
+            </span>
+          )}
+          renderTabPanel={({ elements, index }) => (
+            <GeoReferenceAssertionRow
+              assertion={elements[index]}
+              index={index}
+            />
+          )}
+        />
+      </FieldSet>
     </div>
   );
 }

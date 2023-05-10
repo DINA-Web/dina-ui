@@ -1,7 +1,7 @@
 import { KitsuResource } from "kitsu";
 
 export interface FieldExtensionAttributes {
-  type: "extenstion";
+  type: "extension";
   extension: {
     name: string;
     key: string;
@@ -11,6 +11,7 @@ export interface FieldExtensionAttributes {
 }
 
 export type ExtensionField = {
+  key: string;
   term: string;
   name: string;
   definition: string;
@@ -25,4 +26,12 @@ export type ExtensionValue = {
   extVersion?: string;
   extTerm?: string;
   value?: string;
+};
+
+export type FieldExtensionValue = {
+  type: "field-extension-value";
+  id: string;
+  extensionName: string;
+  extensionKey: string;
+  field: ExtensionField;
 };

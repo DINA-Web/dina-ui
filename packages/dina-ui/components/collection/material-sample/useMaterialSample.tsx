@@ -4,6 +4,8 @@ import {
   DinaFormSubmitParams,
   DoOperationsError,
   OperationError,
+  processExtensionValuesLoading,
+  processExtensionValuesSaving,
   resourceDifference,
   SaveArgs,
   useApiClient,
@@ -20,9 +22,11 @@ import {
   mapKeys,
   pick,
   pickBy,
-  range
+  range,
+  find
 } from "lodash";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useDinaIntl } from "../../../intl/dina-ui-intl";
+import { useLayoutEffect, useRef, useState, useEffect } from "react";
 import {
   BLANK_PREPARATION,
   CollectingEventFormLayout,
@@ -33,22 +37,22 @@ import {
   useLastUsedCollection
 } from "../..";
 import {
-  AcquisitionEvent,
+  ASSOCIATIONS_COMPONENT_NAME,
   CollectingEvent,
+  COLLECTING_EVENT_COMPONENT_NAME,
   Collection,
+  FormTemplate,
   MaterialSample,
-  Organism
+  Organism,
+  ORGANISMS_COMPONENT_NAME,
+  PREPARATIONS_COMPONENT_NAME,
+  RESTRICTION_COMPONENT_NAME,
+  SCHEDULED_ACTIONS_COMPONENT_NAME,
+  STORAGE_COMPONENT_NAME
 } from "../../../../dina-ui/types/collection-api";
 import { Person } from "../../../../dina-ui/types/objectstore-api";
-import {
-  AcquisitionEventFormLayout,
-  useAcquisitionEvent
-} from "../../../pages/collection/acquisition-event/edit";
 import { AllowAttachmentsConfig } from "../../object-store";
-import {
-  MatrialSampleFormEnabledFields,
-  VisibleManagedAttributesConfig
-} from "./MaterialSampleForm";
+import { VisibleManagedAttributesConfig } from "./MaterialSampleForm";
 import { BLANK_RESTRICTION, RESTRICTIONS_FIELDS } from "./RestrictionField";
 import { useGenerateSequence } from "./useGenerateSequence";
 
@@ -61,29 +65,22 @@ export function useMaterialSampleQuery(id?: string | null) {
       include: [
         "collection",
         "collectingEvent",
-        "acquisitionEvent",
         "attachment",
-        "preparationAttachment",
+        "preparationProtocol",
         "preparationType",
+        "preparationMethod",
         "preparedBy",
         "storageUnit",
         "hierarchy",
         "organism",
         "materialSampleChildren",
         "parentMaterialSample",
-        "projects"
+        "projects",
+        "assemblages"
       ].join(",")
     },
     {
       disabled: !id,
-      joinSpecs: [
-        {
-          apiBaseUrl: "/agent-api",
-          idField: "preparedBy",
-          joinField: "preparedBy",
-          path: (ms: MaterialSample) => `person/${ms.preparedBy?.id}`
-        }
-      ],
       onSuccess: async ({ data }) => {
         for (const organism of data.organism ?? []) {
           if (organism?.determination) {
@@ -106,33 +103,49 @@ export function useMaterialSampleQuery(id?: string | null) {
           }
         }
 
-        if (data.materialSampleChildren) {
-          data.materialSampleChildren = compact(
-            await bulkGet<MaterialSample, true>(
-              data.materialSampleChildren.map(
-                child => `/material-sample/${child.id}`
-              ),
-              {
-                apiBaseUrl: "/collection-api",
-                returnNullForMissingResource: true
-              }
-            )
+        // Process loaded back-end data into data structure that Forkmiks can use
+        if (data.extensionValues) {
+          data.extensionValuesForm = processExtensionValuesLoading(
+            data.extensionValues
           );
+          delete data.extensionValues;
         }
-        // Convert to seperated list
-        if (data.restrictionFieldsExtension && data.isRestricted) {
-          data[RESTRICTIONS_FIELDS[0]] = data.restrictionFieldsExtension.filter(
-            ext => ext.extKey === "phac_animal_rg"
-          )?.[0];
-          data[RESTRICTIONS_FIELDS[1]] = data.restrictionFieldsExtension.filter(
-            ext => ext.extKey === "phac_human_rg"
-          )?.[0];
-          data[RESTRICTIONS_FIELDS[2]] = data.restrictionFieldsExtension.filter(
-            ext => ext.extKey === "cfia_ppc"
-          )?.[0];
-          data[RESTRICTIONS_FIELDS[3]] = data.restrictionFieldsExtension.filter(
-            ext => ext.extKey === "phac_cl"
-          )?.[0];
+
+        // Convert to separated list
+        if (data.restrictionFieldsExtension) {
+          // Process risk groups
+          if (data.restrictionFieldsExtension[RESTRICTIONS_FIELDS[0]]) {
+            data[RESTRICTIONS_FIELDS[0]] = {
+              extKey: RESTRICTIONS_FIELDS[0],
+              value:
+                data.restrictionFieldsExtension[RESTRICTIONS_FIELDS[0]]
+                  .risk_group
+            };
+          }
+          if (data.restrictionFieldsExtension[RESTRICTIONS_FIELDS[1]]) {
+            data[RESTRICTIONS_FIELDS[1]] = {
+              extKey: RESTRICTIONS_FIELDS[1],
+              value:
+                data.restrictionFieldsExtension[RESTRICTIONS_FIELDS[1]]
+                  .risk_group
+            };
+          }
+
+          // Process levels
+          if (data.restrictionFieldsExtension[RESTRICTIONS_FIELDS[2]]) {
+            data[RESTRICTIONS_FIELDS[2]] = {
+              extKey: RESTRICTIONS_FIELDS[2],
+              value:
+                data.restrictionFieldsExtension[RESTRICTIONS_FIELDS[2]].level
+            };
+          }
+          if (data.restrictionFieldsExtension[RESTRICTIONS_FIELDS[3]]) {
+            data[RESTRICTIONS_FIELDS[3]] = {
+              extKey: RESTRICTIONS_FIELDS[3],
+              value:
+                data.restrictionFieldsExtension[RESTRICTIONS_FIELDS[3]].level
+            };
+          }
         }
       }
     }
@@ -145,19 +158,13 @@ export interface UseMaterialSampleSaveParams {
   materialSample?: InputResource<MaterialSample>;
   /** Initial values for creating a new Collecting Event with the Material Sample. */
   collectingEventInitialValues?: InputResource<CollectingEvent>;
-  /** Initial values for creating a new Collecting Event with the Material Sample. */
-  acquisitionEventInitialValues?: InputResource<AcquisitionEvent>;
 
   onSaved?: (id: string) => Promise<void>;
 
   colEventFormRef?: React.RefObject<FormikProps<any>>;
-  acquisitionEventFormRef?: React.RefObject<FormikProps<any>>;
 
   isTemplate?: boolean;
 
-  acqEventTemplateInitialValues?: Partial<AcquisitionEvent> & {
-    templateCheckboxes?: Record<string, boolean | undefined>;
-  };
   colEventTemplateInitialValues?: Partial<CollectingEvent> & {
     templateCheckboxes?: Record<string, boolean | undefined>;
   };
@@ -165,15 +172,18 @@ export interface UseMaterialSampleSaveParams {
     templateCheckboxes?: Record<string, boolean | undefined>;
   };
 
+  /** Split Configuration (Form Template Only) */
+  splitConfigurationInitialState?: boolean;
+
   /** Optionally restrict the form to these enabled fields. */
-  enabledFields?: MatrialSampleFormEnabledFields;
+  formTemplate?: FormTemplate;
 
   collectingEventAttachmentsConfig?: AllowAttachmentsConfig;
 
   /** Reduces the rendering to improve performance when bulk editing many material samples. */
   reduceRendering?: boolean;
 
-  /** Disable the nested Collecting Event and Acquisition Event forms. */
+  /** Disable the nested Collecting Event forms. */
   disableNestedFormEdits?: boolean;
 
   showChangedIndicatorsInNestedForms?: boolean;
@@ -191,22 +201,21 @@ export interface PrepareSampleSaveOperationParams {
 export function useMaterialSampleSave({
   materialSample,
   collectingEventInitialValues: collectingEventInitialValuesProp,
-  acquisitionEventInitialValues,
   onSaved,
   colEventFormRef: colEventFormRefProp,
-  acquisitionEventFormRef: acquisitionEventFormRefProp,
   isTemplate,
-  enabledFields,
+  formTemplate,
   collectingEventAttachmentsConfig,
-  acqEventTemplateInitialValues,
   colEventTemplateInitialValues,
   materialSampleTemplateInitialValues,
+  splitConfigurationInitialState,
   reduceRendering,
   disableNestedFormEdits,
   showChangedIndicatorsInNestedForms,
   visibleManagedAttributeKeys
 }: UseMaterialSampleSaveParams) {
   const { save } = useApiClient();
+  const { formatMessage } = useDinaIntl();
 
   // For editing existing templates:
   const hasColEventTemplate =
@@ -214,17 +223,12 @@ export function useMaterialSampleSave({
     (!isEmpty(colEventTemplateInitialValues?.templateCheckboxes) ||
       colEventTemplateInitialValues?.id);
 
-  const hasAcquisitionEventTemplate =
-    isTemplate &&
-    (!isEmpty(acqEventTemplateInitialValues?.templateCheckboxes) ||
-      acqEventTemplateInitialValues?.id);
-
   const hasPreparationsTemplate =
     isTemplate &&
     !isEmpty(
-      pick(
+      pickBy(
         materialSampleTemplateInitialValues?.templateCheckboxes,
-        ...PREPARATION_FIELDS
+        (_, key) => key.startsWith(PREPARATIONS_COMPONENT_NAME)
       )
     );
 
@@ -233,20 +237,25 @@ export function useMaterialSampleSave({
     !isEmpty(
       pickBy(
         materialSampleTemplateInitialValues?.templateCheckboxes,
-        (_, key) => key.startsWith("organism[0].")
+        (_, key) => key.startsWith(ORGANISMS_COMPONENT_NAME)
       )
     );
 
   const hasStorageTemplate =
     isTemplate &&
-    materialSampleTemplateInitialValues?.templateCheckboxes?.storageUnit;
+    !isEmpty(
+      pickBy(
+        materialSampleTemplateInitialValues?.templateCheckboxes,
+        (_, key) => key.startsWith(STORAGE_COMPONENT_NAME)
+      )
+    );
 
   const hasScheduledActionsTemplate =
     isTemplate &&
     !isEmpty(
       pickBy(
         materialSampleTemplateInitialValues?.templateCheckboxes,
-        (_, key) => key.startsWith("scheduledAction.")
+        (_, key) => key.startsWith(SCHEDULED_ACTIONS_COMPONENT_NAME)
       )
     );
 
@@ -255,110 +264,131 @@ export function useMaterialSampleSave({
     !isEmpty(
       pickBy(
         materialSampleTemplateInitialValues?.templateCheckboxes,
-        (_, key) =>
-          key.startsWith("associations[0].") || key.startsWith("hostOrganism.")
+        (_, key) => key.startsWith(ASSOCIATIONS_COMPONENT_NAME)
       )
     );
 
   const hasRestrictionsTemplate =
     isTemplate &&
     !isEmpty(
-      pick(
+      pickBy(
         materialSampleTemplateInitialValues?.templateCheckboxes,
-        ...RESTRICTIONS_FIELDS
+        (_, key) => key.startsWith(RESTRICTION_COMPONENT_NAME)
       )
     );
-  
-  const [enableCollectingEvent, setEnableCollectingEvent] = useState(
-    Boolean(
-      hasColEventTemplate ||
-        materialSample?.collectingEvent ||
-        enabledFields?.collectingEvent?.length)
-  );
 
-  const [enableAcquisitionEvent, setEnableAcquisitionEvent] = useState(
-    Boolean(
-      hasAcquisitionEventTemplate ||
-        materialSample?.acquisitionEvent ||
-        enabledFields?.acquisitionEvent?.length
-    )
-  );
+  // Enable Switch States:
+  const [enableSplitConfiguration, setEnableSplitConfiguration] =
+    useState<boolean>(false);
+  const [enableCollectingEvent, setEnableCollectingEvent] =
+    useState<boolean>(false);
+  const [enablePreparations, setEnablePreparations] = useState<boolean>(false);
+  const [enableOrganisms, setEnableOrganisms] = useState<boolean>(false);
+  const [enableStorage, setEnableStorage] = useState<boolean>(false);
+  const [enableScheduledActions, setEnableScheduledActions] =
+    useState<boolean>(false);
+  const [enableAssociations, setEnableAssociations] = useState<boolean>(false);
+  const [enableRestrictions, setEnableRestrictions] = useState<boolean>(false);
 
-  const [enablePreparations, setEnablePreparations] = useState(
-    Boolean(
-      hasPreparationsTemplate ||
-        // Show the preparation section if a field is set or the field is enabled:
-        PREPARATION_FIELDS.some(
-          prepFieldName =>
-            !isEmpty(materialSample?.[prepFieldName]) ||
-            enabledFields?.materialSample?.includes(prepFieldName)
-        )
-    )
-  );
+  // Setup the enabled fields state based on the form template being used.
+  useEffect(() => {
+    setEnableSplitConfiguration(splitConfigurationInitialState ?? false);
 
-  const [enableOrganisms, setEnableOrganisms] = useState(
-    Boolean(
-      hasOrganismsTemplate ||
-        materialSample?.organism?.length ||
-        enabledFields?.materialSample?.some(enabledField =>
-          enabledField.startsWith("organism[0].")
-        )
-    )
-  );
+    setEnableCollectingEvent(
+      Boolean(
+        hasColEventTemplate ||
+          materialSample?.collectingEvent ||
+          (find(formTemplate?.components, {
+            name: COLLECTING_EVENT_COMPONENT_NAME
+          })?.visible ??
+            false)
+      )
+    );
 
-  const [enableStorage, setEnableStorage] = useState(
-    // Show the Storage section if the storage field is set or the template enables it:
-    Boolean(
-      hasStorageTemplate ||
-        materialSample?.storageUnit?.id ||
-        enabledFields?.materialSample?.includes("storageUnit")
-    )
-  );
+    setEnablePreparations(
+      Boolean(
+        hasPreparationsTemplate ||
+          // Show the preparation section if a field is set or the field is enabled:
+          PREPARATION_FIELDS.some(
+            (prepFieldName) =>
+              !isEmpty(materialSample?.[prepFieldName]) ||
+              (find(formTemplate?.components, {
+                name: PREPARATIONS_COMPONENT_NAME
+              })?.visible ??
+                false)
+          )
+      )
+    );
 
-  const [enableScheduledActions, setEnableScheduledActions] = useState(
-    // Show the Scheduled Actions section if the field is set or the template enables it:
-    Boolean(
-      hasScheduledActionsTemplate ||
-        materialSample?.scheduledActions?.length ||
-        enabledFields?.materialSample?.some(enabledField =>
-          enabledField.startsWith("scheduledAction.")
-        )
-    )
-  );
+    setEnableOrganisms(
+      Boolean(
+        hasOrganismsTemplate ||
+          materialSample?.organism?.length ||
+          (find(formTemplate?.components, {
+            name: ORGANISMS_COMPONENT_NAME
+          })?.visible ??
+            false)
+      )
+    );
 
-  const [enableAssociations, setEnableAssociations] = useState(
-    // Show the associations section if the field is set or the template enables it:
-    Boolean(
-      hasAssociationsTemplate ||
-        materialSample?.associations?.length ||
-        !isEmpty(materialSample?.hostOrganism) ||
-        !isEmpty(materialSample?.associations) ||
-        enabledFields?.materialSample?.some(
-          enabledField =>
-            enabledField.startsWith("associations[0].") ||
-            enabledField.startsWith("hostOrganism.")
-        )
-    )
-  );
+    setEnableStorage(
+      // Show the Storage section if the storage field is set or the template enables it:
+      Boolean(
+        hasStorageTemplate ||
+          materialSample?.storageUnit?.id ||
+          (find(formTemplate?.components, {
+            name: STORAGE_COMPONENT_NAME
+          })?.visible ??
+            false)
+      )
+    );
 
-  const [enableRestrictions, setEnableRestrictions] = useState(
-    Boolean(
-      hasRestrictionsTemplate ||
-        // Show the restriction section if a field is set or the field is enabled:
-        RESTRICTIONS_FIELDS.some(
-          restrictFieldName =>
-            !isEmpty(materialSample?.[restrictFieldName]) ||
-            enabledFields?.materialSample?.includes(restrictFieldName)
-        )
-    )
-  );
+    setEnableScheduledActions(
+      // Show the Scheduled Actions section if the field is set or the template enables it:
+      Boolean(
+        hasScheduledActionsTemplate ||
+          materialSample?.scheduledActions?.length ||
+          (find(formTemplate?.components, {
+            name: SCHEDULED_ACTIONS_COMPONENT_NAME
+          })?.visible ??
+            false)
+      )
+    );
+
+    setEnableAssociations(
+      // Show the associations section if the field is set or the template enables it:
+      Boolean(
+        hasAssociationsTemplate ||
+          materialSample?.associations?.length ||
+          !isEmpty(materialSample?.hostOrganism) ||
+          !isEmpty(materialSample?.associations) ||
+          (find(formTemplate?.components, {
+            name: ASSOCIATIONS_COMPONENT_NAME
+          })?.visible ??
+            false)
+      )
+    );
+
+    setEnableRestrictions(
+      Boolean(
+        hasRestrictionsTemplate ||
+          // Show the restriction section if a field is set or the field is enabled:
+          RESTRICTIONS_FIELDS.some(
+            (restrictFieldName) =>
+              !isEmpty(materialSample?.[restrictFieldName]) ||
+              (find(formTemplate?.components, {
+                name: RESTRICTION_COMPONENT_NAME
+              })?.visible ??
+                false)
+          )
+      )
+    );
+  }, [formTemplate]);
 
   // The state describing which Data components (Form sections) are enabled:
   const dataComponentState = {
     enableCollectingEvent,
     setEnableCollectingEvent,
-    enableAcquisitionEvent,
-    setEnableAcquisitionEvent,
     enablePreparations,
     setEnablePreparations,
     enableOrganisms,
@@ -370,7 +400,9 @@ export function useMaterialSampleSave({
     enableAssociations,
     setEnableAssociations,
     enableRestrictions,
-    setEnableRestrictions
+    setEnableRestrictions,
+    enableSplitConfiguration,
+    setEnableSplitConfiguration
   };
 
   const { loading, lastUsedCollection } = useLastUsedCollection();
@@ -405,15 +437,6 @@ export function useMaterialSampleSave({
   const collectingEventInitialValues =
     collectingEventInitialValuesProp ?? collectingEventHookInitialValues;
 
-  const acqEventFormRef =
-    acquisitionEventFormRefProp ?? useRef<FormikProps<any>>(null);
-  const [acqEventId, setAcqEventId] = useState<string | null | undefined>(
-    isTemplate
-      ? acqEventTemplateInitialValues?.id
-      : materialSample?.acquisitionEvent?.id
-  );
-  const acqEventQuery = useAcquisitionEvent(acqEventId);
-
   // Add zebra-striping effect to the form sections. Every second top-level fieldset should have a grey background.
   useLayoutEffect(() => {
     const dataComponents = document?.querySelectorAll<HTMLDivElement>(
@@ -430,15 +453,46 @@ export function useMaterialSampleSave({
   async function prepareSampleInput(
     submittedValues: InputResource<MaterialSample>
   ): Promise<InputResource<MaterialSample>> {
-    // Set the restrictedExtensions
-    submittedValues.restrictionFieldsExtension = [
-      ...(submittedValues.cfia_ppc ? [submittedValues.cfia_ppc] : []),
-      ...(submittedValues.phac_animal_rg
-        ? [submittedValues.phac_animal_rg]
-        : []),
-      ...(submittedValues.phac_cl ? [submittedValues.phac_cl] : []),
-      ...(submittedValues.phac_human_rg ? [submittedValues.phac_human_rg] : [])
-    ];
+    // Set the restrictionFieldsExtension
+    submittedValues.restrictionFieldsExtension = {};
+    if (submittedValues.phac_cl && submittedValues.phac_cl.extKey) {
+      submittedValues.restrictionFieldsExtension[
+        submittedValues.phac_cl.extKey
+      ] = {
+        level: submittedValues?.phac_cl?.value
+      };
+    }
+    if (submittedValues.cfia_ppc && submittedValues.cfia_ppc.extKey) {
+      submittedValues.restrictionFieldsExtension[
+        submittedValues.cfia_ppc.extKey
+      ] = {
+        level: submittedValues?.cfia_ppc?.value
+      };
+    }
+    if (
+      submittedValues.phac_animal_rg &&
+      submittedValues.phac_animal_rg.extKey
+    ) {
+      submittedValues.restrictionFieldsExtension[
+        submittedValues.phac_animal_rg.extKey
+      ] = {
+        risk_group: submittedValues?.phac_animal_rg?.value
+      };
+    }
+    if (submittedValues.phac_human_rg && submittedValues.phac_human_rg.extKey) {
+      submittedValues.restrictionFieldsExtension[
+        submittedValues.phac_human_rg.extKey
+      ] = {
+        risk_group: submittedValues?.phac_human_rg?.value
+      };
+    }
+
+    if (submittedValues.extensionValuesForm) {
+      submittedValues.extensionValues = processExtensionValuesSaving(
+        submittedValues.extensionValuesForm
+      );
+    }
+    delete submittedValues.extensionValuesForm;
 
     /** Input to submit to the back-end API. */
     const materialSampleInput: InputResource<MaterialSample> = {
@@ -452,18 +506,16 @@ export function useMaterialSampleSave({
         organismsQuantity: undefined,
         organism: []
       }),
+
       ...(!enableStorage && {
         storageUnit: { id: null, type: "storage-unit" }
       }),
       ...(!enableCollectingEvent && {
         collectingEvent: { id: null, type: "collecting-event" }
       }),
-      ...(!enableAcquisitionEvent && {
-        acquisitionEvent: { id: null, type: "acquisition-event" }
-      }),
       ...(!enableAssociations && { associations: [], hostOrganism: null }),
 
-      // Remove the scheduledAction field from the Custom View:
+      // Remove the scheduledAction field from the Form Template:
       ...{ scheduledAction: undefined }
     };
 
@@ -516,67 +568,21 @@ export function useMaterialSampleSave({
       }
     }
 
-    // Save and link the Acquisition Event if enabled:
-    if (enableAcquisitionEvent && acqEventFormRef.current) {
-      // Save the linked AcqEvent if included:
-      const submittedAcqEvent: PersistedResource<AcquisitionEvent> = cloneDeep(
-        acqEventFormRef.current.values
+    // Throw error if useTargetOrganism is enabled without a target organism selected
+    if (
+      materialSampleInput.useTargetOrganism &&
+      !materialSampleInput.organism?.some((organism) => organism?.isTarget)
+    ) {
+      throw new DoOperationsError(
+        formatMessage("field_useTargetOrganismError")
       );
-
-      const acqEventWasEdited =
-        !submittedAcqEvent?.id ||
-        !isEqual(submittedAcqEvent, acqEventFormRef.current.initialValues);
-
-      try {
-        // Throw if the Acq Event sub-form has errors:
-        const acqEventErrors = await acqEventFormRef.current.validateForm();
-        if (!isEmpty(acqEventErrors)) {
-          throw new DoOperationsError("", acqEventErrors);
-        }
-
-        // Only send the save request if the Acq Event was edited:
-        const [savedAcqEvent] = acqEventWasEdited
-          ? // Use the same save method as the Acq Event page:
-            await save<AcquisitionEvent>(
-              [
-                {
-                  resource: submittedAcqEvent,
-                  type: "acquisition-event"
-                }
-              ],
-              { apiBaseUrl: "/collection-api" }
-            )
-          : [submittedAcqEvent];
-
-        // Set the acqEventId here in case the next operation fails:
-        setAcqEventId(savedAcqEvent.id);
-
-        // Link the MaterialSample to the AcquisitionEvent:
-        materialSampleInput.acquisitionEvent = {
-          id: savedAcqEvent.id,
-          type: savedAcqEvent.type
-        };
-      } catch (error: unknown) {
-        if (error instanceof DoOperationsError) {
-          // Put the error messages into both form states:
-          acqEventFormRef.current.setStatus(error.message);
-          acqEventFormRef.current.setErrors(error.fieldErrors);
-          throw new DoOperationsError(
-            error.message,
-            mapKeys(
-              error.fieldErrors,
-              (_, field) => `acquisitionEvent.${field}`
-            )
-          );
-        }
-        throw error;
-      }
     }
 
     delete materialSampleInput.phac_animal_rg;
     delete materialSampleInput.phac_cl;
     delete materialSampleInput.phac_human_rg;
     delete materialSampleInput.cfia_ppc;
+    delete materialSampleInput.useTargetOrganism;
 
     return materialSampleInput;
   }
@@ -627,34 +633,57 @@ export function useMaterialSampleSave({
       relationships: {
         ...(msDiffWithOrganisms.attachment && {
           attachment: {
-            data: msDiffWithOrganisms.attachment.map(it =>
-              pick(it, "id", "type")
-            )
-          }
-        }),
-        ...(msDiffWithOrganisms.preparationAttachment && {
-          preparationAttachment: {
-            data: msDiffWithOrganisms.preparationAttachment.map(it =>
+            data: msDiffWithOrganisms.attachment.map((it) =>
               pick(it, "id", "type")
             )
           }
         }),
         ...(msDiffWithOrganisms.projects && {
           projects: {
-            data: msDiffWithOrganisms.projects.map(it => pick(it, "id", "type"))
+            data: msDiffWithOrganisms.projects.map((it) =>
+              pick(it, "id", "type")
+            )
+          }
+        }),
+        ...(msDiffWithOrganisms.assemblages && {
+          assemblages: {
+            data: msDiffWithOrganisms.assemblages.map((it) =>
+              pick(it, "id", "type")
+            )
           }
         }),
         ...(msDiffWithOrganisms.organism && {
           organism: {
-            data: msDiffWithOrganisms.organism.map(it => pick(it, "id", "type"))
+            data: msDiffWithOrganisms.organism.map((it) =>
+              pick(it, "id", "type")
+            )
+          }
+        }),
+        ...(msDiffWithOrganisms.preparedBy && {
+          preparedBy: {
+            data: msDiffWithOrganisms.preparedBy.map((it) =>
+              pick(it, "id", "type")
+            )
+          }
+        }),
+        ...(msDiffWithOrganisms.preparationType?.id && {
+          preparationType: {
+            data: pick(msDiffWithOrganisms.preparationType, "id", "type")
+          }
+        }),
+        ...(msDiffWithOrganisms.collection?.id && {
+          collection: {
+            data: pick(msDiffWithOrganisms.collection, "id", "type")
           }
         })
       },
+
       // Set the attributes to undefined after they've been moved to "relationships":
       attachment: undefined,
-      preparationAttachment: undefined,
       projects: undefined,
-      organism: undefined
+      organism: undefined,
+      assemblages: undefined,
+      preparedBy: undefined
     };
 
     // delete the association if associated sample is left unfilled
@@ -683,7 +712,7 @@ export function useMaterialSampleSave({
       0,
       sample.organismsQuantity ?? undefined
     )
-      .map(index => {
+      .map((index) => {
         const defaults = {
           // Default to the sample's group:
           group: sample.group,
@@ -702,18 +731,18 @@ export function useMaterialSampleSave({
         };
       })
       // Convert determiners from Objects to UUID strings:
-      .map(org => ({
+      .map((org) => ({
         ...org,
-        determination: org.determination?.map(det => ({
+        determination: org.determination?.map((det) => ({
           ...det,
-          determiner: det.determiner?.map(determiner =>
+          determiner: det.determiner?.map((determiner) =>
             typeof determiner === "string" ? determiner : String(determiner.id)
           )
         }))
       }));
 
     const organismSaveArgs: SaveArgs<Organism>[] = preparedOrganisms.map(
-      resource => ({
+      (resource) => ({
         resource,
         type: "organism"
       })
@@ -727,10 +756,11 @@ export function useMaterialSampleSave({
       const savedOrganisms = await save<Organism>(organismSaveArgs, {
         apiBaseUrl: "/collection-api"
       });
+
       return savedOrganisms;
     } catch (error: unknown) {
       if (error instanceof DoOperationsError) {
-        const newErrors = error.individualErrors.map<OperationError>(err => ({
+        const newErrors = error.individualErrors.map<OperationError>((err) => ({
           fieldErrors: mapKeys(
             err.fieldErrors,
             (_, field) => `organism[${err.index}].${field}`
@@ -777,7 +807,7 @@ export function useMaterialSampleSave({
         collectionId: submittedValues.collection?.id as any,
         amount: 1,
         save
-      }).then(async data => {
+      }).then(async (data) => {
         if (data.result?.lowReservedID && data.result.highReservedID) {
           const prefix = materialSampleSaveOp.resource.collection
             ? (materialSampleSaveOp.resource.collection as Collection).code ??
@@ -794,7 +824,7 @@ export function useMaterialSampleSave({
   }
 
   // In bulk edit mode, show green labels and green inputs for changed fields in
-  // the nested Collection Event and Acquisition Event forms.
+  // the nested Collection Event forms.
   const nestedFormClassName = showChangedIndicatorsInNestedForms
     ? "show-changed-indicators"
     : "";
@@ -816,7 +846,7 @@ export function useMaterialSampleSave({
       isTemplate,
       // In bulk-edit and workflow run, disable editing existing Col events:
       readOnly: disableNestedFormEdits || isTemplate ? !!colEventId : false,
-      enabledFields: enabledFields?.collectingEvent,
+      formTemplate,
       children: reduceRendering ? (
         <div />
       ) : (
@@ -834,47 +864,12 @@ export function useMaterialSampleSave({
     return <DinaForm {...colEventFormProps} />;
   }
 
-  function nestedAcqEventForm(acqEvent?: PersistedResource<AcquisitionEvent>) {
-    const initialValues =
-      acqEvent ??
-      (isTemplate
-        ? acqEventTemplateInitialValues
-        : { type: "acquisition-event", ...acquisitionEventInitialValues });
-
-    const acqEventFormProps: DinaFormProps<any> = {
-      innerRef: acqEventFormRef,
-      initialValues,
-      isTemplate,
-      // In bulk-edit and workflow run, disable editing existing Acq events:
-      readOnly: disableNestedFormEdits || isTemplate ? !!acqEventId : false,
-      enabledFields: enabledFields?.acquisitionEvent,
-      children: reduceRendering ? (
-        <div />
-      ) : (
-        <div className={nestedFormClassName}>
-          <AcquisitionEventFormLayout />
-        </div>
-      )
-    };
-
-    return acqEventId ? (
-      withResponse(acqEventQuery, ({ data }) => (
-        <DinaForm {...acqEventFormProps} initialValues={data} />
-      ))
-    ) : (
-      <DinaForm {...acqEventFormProps} />
-    );
-  }
-
   return {
     initialValues: msInitialValues,
     nestedCollectingEventForm,
-    nestedAcqEventForm,
     dataComponentState,
     colEventId,
     setColEventId,
-    acqEventId,
-    setAcqEventId,
     onSubmit,
     prepareSampleInput,
     prepareSampleSaveOperation,
@@ -887,7 +882,7 @@ export function withOrganismEditorValues<
   T extends InputResource<MaterialSample> | PersistedResource<MaterialSample>
 >(materialSample: T): T {
   // If there are different organisms then initially show the individual organisms edit UI:
-  const hasDifferentOrganisms = materialSample?.organism?.some(org => {
+  const hasDifferentOrganisms = materialSample?.organism?.some((org) => {
     const firstOrg = materialSample?.organism?.[0];
 
     const {

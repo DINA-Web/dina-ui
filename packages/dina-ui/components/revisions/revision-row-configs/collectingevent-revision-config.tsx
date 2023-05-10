@@ -5,9 +5,10 @@ import {
   CollectingEvent
 } from "../../../types/collection-api/";
 import { Metadata, Person } from "../../../types/objectstore-api";
-import { ManagedAttributesViewer } from "../../object-store/managed-attributes/ManagedAttributesViewer";
+import { ManagedAttributesViewer } from "../../managed-attributes/ManagedAttributesViewer";
 import { ReferenceLink } from "../ReferenceLink";
 import { RevisionRowConfig } from "../revision-row-config";
+import { DataEntryViewer } from "common-ui/lib/formik-connected/data-entry/DataEntryViewer";
 
 export const COLLECTING_EVENT_REVISION_ROW_CONFIG: RevisionRowConfig<CollectingEvent> =
   {
@@ -66,13 +67,13 @@ export const COLLECTING_EVENT_REVISION_ROW_CONFIG: RevisionRowConfig<CollectingE
               data={assertion}
               customValueCells={{
                 georeferencedBy: ({ value: ids }) =>
-                  ids?.map(id => (
+                  ids?.map((id) => (
                     <div key={id}>
                       <ReferenceLink<Person>
                         baseApiPath="agent-api"
                         type="person"
                         reference={{ id }}
-                        name={person => person.displayName}
+                        name={(person) => person.displayName}
                         href="/person/view?id="
                       />
                     </div>
@@ -86,18 +87,27 @@ export const COLLECTING_EVENT_REVISION_ROW_CONFIG: RevisionRowConfig<CollectingE
         )) ?? null,
       managedAttributes: ({ original: { value } }) => (
         <ManagedAttributesViewer
-          managedAttributeApiPath={key =>
-            `collection-api/managed-attribute/${key}`
-          }
           values={value}
+          managedAttributeApiPath="collection-api/managed-attribute"
         />
       ),
       geographicPlaceNameSourceDetail: ({ original: { value } }) => (
         <KeyValueTable
           data={value}
           customValueCells={{
-            stateProvince: sp => <KeyValueTable data={sp.value} />,
-            country: c => <KeyValueTable data={c.value} />
+            stateProvince: (sp) => <KeyValueTable data={sp.value} />,
+            country: (c) => <KeyValueTable data={c.value} />
+          }}
+        />
+      ),
+      extensionValues: ({ original: { value } }) => (
+        <DataEntryViewer
+          extensionValues={value}
+          legend={<></>}
+          name={"extensionValuesForm"}
+          blockOptionsEndpoint={`collection-api/extension`}
+          blockOptionsFilter={{
+            "extension.fields.dinaComponent": "COLLECTING_EVENT"
           }}
         />
       )

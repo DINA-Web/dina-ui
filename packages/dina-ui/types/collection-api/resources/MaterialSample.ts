@@ -1,8 +1,8 @@
 import { ResourceIdentifierObject } from "jsonapi-typescript";
 import { InputResource, KitsuResource, KitsuResourceLink } from "kitsu";
 import { BLANK_PREPARATION, BLANK_RESTRICTION } from "../../../components";
-import { ManagedAttributeValues, Person } from "../../objectstore-api";
-import { AcquisitionEvent } from "./AcquisitionEvent";
+import { ManagedAttributeValues } from "./ManagedAttribute";
+import { Assemblage } from "./Assemblage";
 import { CollectingEvent } from "./CollectingEvent";
 import { Collection } from "./Collection";
 import { ExtensionValue } from "./FieldExtension";
@@ -11,28 +11,7 @@ import { Organism } from "./Organism";
 import { PreparationType } from "./PreparationType";
 import { Project } from "./Project";
 import { HierarchyItem, StorageUnit } from "./StorageUnit";
-
-/**
- * All Material Sample form sections in order.
- * This array is the source of truth for the section ID names and their order.
- */
-export const MATERIAL_SAMPLE_FORM_SECTIONS = [
-  "identifiers-section",
-  "material-sample-info-section",
-  "collecting-event-section",
-  "acquisition-event-section",
-  "preparations-section",
-  "organisms-section",
-  "associations-section",
-  "storage-section",
-  "restriction-section",
-  "scheduled-actions-section",
-  "managedAttributes-section",
-  "material-sample-attachments-section"
-] as const;
-
-export type MaterialSampleFormSectionId =
-  typeof MATERIAL_SAMPLE_FORM_SECTIONS[number];
+import { Person } from "../../objectstore-api";
 
 export interface MaterialSampleAttributes {
   type: "material-sample";
@@ -43,7 +22,6 @@ export interface MaterialSampleAttributes {
   createdOn?: string;
   createdBy?: string;
   dwcOtherCatalogNumbers?: string[];
-  preparationMethod?: string | null;
   preservationType?: string | null;
   preparationFixative?: string | null;
   preparationMaterials?: string | null;
@@ -67,10 +45,11 @@ export interface MaterialSampleAttributes {
   // Client-side only fields for the organism section:
   organismsQuantity?: number;
   organismsIndividualEntry?: boolean;
+  useTargetOrganism?: boolean;
 
   publiclyReleasable?: boolean | null;
   notPubliclyReleasableReason?: string;
-  materialSampleChildren?: Partial<MaterialSample>[];
+  materialSampleChildren?: Partial<MaterialSampleChildren>[];
   tags?: string[];
 
   scheduledActions?: ScheduledAction[];
@@ -84,7 +63,7 @@ export interface MaterialSampleAttributes {
 
   useNextSequence?: boolean;
 
-  restrictionFieldsExtension?: ExtensionValue[] | null;
+  restrictionFieldsExtension?: any | null;
 
   phac_human_rg?: ExtensionValue | null;
   phac_cl?: ExtensionValue | null;
@@ -93,6 +72,8 @@ export interface MaterialSampleAttributes {
 
   isRestricted?: boolean;
   restrictionRemarks?: string | null;
+  extensionValues?: any;
+  extensionValuesForm?: any;
 }
 
 export interface HostOrganism {
@@ -118,13 +99,18 @@ export interface MaterialSampleRelationships {
   collection?: Collection;
   collectingEvent?: CollectingEvent;
   attachment?: ResourceIdentifierObject[];
-  preparationAttachment?: ResourceIdentifierObject[];
+  preparationProtocol?: ResourceIdentifierObject;
+  preparationMethod?: ResourceIdentifierObject;
   preparationType?: PreparationType;
-  preparedBy?: Person;
+  preparedBy?: Person[];
   parentMaterialSample?: MaterialSample;
   storageUnit?: StorageUnit;
   projects?: Project[];
-  acquisitionEvent?: AcquisitionEvent;
+  assemblages?: Assemblage[];
+}
+
+interface MaterialSampleChildren extends MaterialSample {
+  ordinal: number;
 }
 
 export function blankMaterialSample(): Partial<InputResource<MaterialSample>> {

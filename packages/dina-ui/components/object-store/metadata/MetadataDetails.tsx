@@ -1,49 +1,21 @@
-import { DateView, FieldHeader, useCollapser, useQuery } from "common-ui";
+import {
+  ApiClientContext,
+  DateView,
+  FieldHeader,
+  useCollapser
+} from "common-ui";
 import { PersistedResource } from "kitsu";
-import { get } from "lodash";
-import { ReactNode } from "react";
+import { find, get } from "lodash";
+import { ReactNode, useContext, useEffect, useState } from "react";
 import ReactTable from "react-table";
+import { ORIENTATION_OPTIONS } from "../../../../dina-ui/pages/object-store/metadata/edit";
 import { DinaMessage, useDinaIntl } from "../../../intl/dina-ui-intl";
-import { Metadata } from "../../../types/objectstore-api";
-import { ObjectUpload } from "../../../types/objectstore-api/resources/ObjectUpload";
+import { License, Metadata } from "../../../types/objectstore-api";
 import { GroupLabel } from "../../group-select/GroupFieldView";
-import { ManagedAttributesViewer } from "../managed-attributes/ManagedAttributesViewer";
+import { ManagedAttributesViewer } from "../../managed-attributes/ManagedAttributesViewer";
 
 export interface MetadataDetailsProps {
   metadata: PersistedResource<Metadata>;
-}
-
-export function useMetadataQuery(id?: string) {
-  const query = useQuery<Metadata & { objectUpload: ObjectUpload }>(
-    {
-      include: "managedAttributeMap,acMetadataCreator,dcCreator,derivatives",
-      path: `objectstore-api/metadata/${id}`
-    },
-    {
-      joinSpecs: [
-        {
-          apiBaseUrl: "/agent-api",
-          idField: "acMetadataCreator",
-          joinField: "acMetadataCreator",
-          path: metadata => `person/${metadata.acMetadataCreator.id}`
-        },
-        {
-          apiBaseUrl: "/agent-api",
-          idField: "dcCreator",
-          joinField: "dcCreator",
-          path: metadata => `person/${metadata.dcCreator.id}`
-        },
-        {
-          apiBaseUrl: "/objectstore-api",
-          idField: "fileIdentifier",
-          joinField: "objectUpload",
-          path: metadata => `object-upload/${metadata.fileIdentifier}`
-        }
-      ]
-    }
-  );
-
-  return query;
 }
 
 /**
@@ -51,7 +23,28 @@ export function useMetadataQuery(id?: string) {
  * Tha ManagedAttributeMap must b included with the passed Metadata.
  */
 export function MetadataDetails({ metadata }: MetadataDetailsProps) {
-  const { formatMessage } = useDinaIntl();
+  const { formatMessage, locale } = useDinaIntl();
+  const { apiClient } = useContext(ApiClientContext);
+  const [license, setLicense] = useState<string>();
+
+  useEffect(() => {
+    loadData().then((licenseLabel) => {
+      setLicense(licenseLabel);
+    });
+  }, []);
+
+  async function loadData() {
+    const selectedLicense = await apiClient.get<License[]>(
+      `objectstore-api/license?filter[url]=${metadata.xmpRightsWebStatement}`,
+      {}
+    );
+    const licenses: License[] = selectedLicense.data;
+
+    return licenses.length > 0
+      ? licenses[0].titles[locale] ?? licenses[0]?.url
+      : undefined;
+  }
+
   const isExternalResource = !!metadata.resourceExternalURL;
   return (
     <div>
@@ -86,9 +79,7 @@ export function MetadataDetails({ metadata }: MetadataDetailsProps) {
         >
           <ManagedAttributesViewer
             values={metadata.managedAttributes}
-            managedAttributeApiPath={id =>
-              `objectstore-api/managed-attribute/${id}`
-            }
+            managedAttributeApiPath="objectstore-api/managed-attribute"
           />
         </CollapsableSection>
       )}
@@ -106,13 +97,19 @@ export function MetadataDetails({ metadata }: MetadataDetailsProps) {
           ...(!isExternalResource ? ["originalFilename"] : []),
           "fileExtension",
           "dcCreator.displayName",
-          "orientation"
+          {
+            name: "orientation",
+            value: find(
+              ORIENTATION_OPTIONS,
+              (option) => option.value === metadata.orientation
+            )?.label
+          }
         ]}
         title={formatMessage("metadataMediaDetailsLabel")}
       />
       <MetadataAttributeGroup
         metadata={metadata}
-        fields={["dcRights", "xmpRightsWebStatement"]}
+        fields={["dcRights", { name: "xmpRightsWebStatement", value: license }]}
         title={formatMessage("metadataRightsDetailsLabel")}
       />
       {!isExternalResource && (
@@ -137,7 +134,7 @@ function MetadataAttributeGroup({
   fields,
   title
 }: MetadataAttributeGroupProps) {
-  const data = fields.map(field => {
+  const data = fields.map((field) => {
     if (typeof field === "string") {
       return { name: field, value: get(metadata, field) };
     }

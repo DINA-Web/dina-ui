@@ -1,16 +1,10 @@
-import {
-  FormikButton,
-  LoadingSpinner,
-  Tooltip,
-  useThrottledFetch
-} from "common-ui";
+import { FormikButton, LoadingSpinner, useThrottledFetch } from "common-ui";
 import DOMPurify from "dompurify";
 import { Field, FormikProps } from "formik";
 import moment from "moment";
 import { ScientificNameSourceDetails } from "../../../../dina-ui/types/collection-api/resources/Determination";
 import { DinaMessage, useDinaIntl } from "../../../intl/dina-ui-intl";
 import { GlobalNamesSearchResult } from "./global-names-search-result-type";
-import { useState } from "react";
 
 export type Selection =
   | string
@@ -54,7 +48,6 @@ export function GlobalNamesSearchBox({
   dateSupplier = () => moment().format("YYYY-MM-DD") // Today
 }: GlobalNamesSearchBoxProps) {
   const { formatMessage } = useDinaIntl();
-  const [isVirusName, setIsVirusName] = useState(false);
 
   const {
     searchIsLoading,
@@ -64,11 +57,10 @@ export function GlobalNamesSearchBox({
     searchIsDisabled,
     doThrottledSearch
   } = useThrottledFetch({
-    fetcher: searchValue =>
-      globalNamesQuery<GlobalNamesSearchResult[]>({
-        url: `https://verifier.globalnames.org/api/${
-          isVirusName ? "v0" : "v1"
-        }/verifications/${
+    fetcher: (searchValue) => {
+      searchValue = searchValue.replace(/\s+/g, " ").trim();
+      return globalNamesQuery<GlobalNamesSearchResult[]>({
+        url: `https://verifier.globalnames.org/api/v1/verifications/${
           searchValue[0].toUpperCase() + searchValue.substring(1)
         }`,
         params: {
@@ -76,13 +68,13 @@ export function GlobalNamesSearchBox({
         },
         searchValue,
         fetchJson
-      }),
+      });
+    },
     timeoutMs: 1000,
-    initSearchValue,
-    isVirusName
+    initSearchValue
   });
 
-  const onInputChange = value => {
+  const onInputChange = (value) => {
     setInputValue(value);
     // Will save the user entry if it is not the determination scientific name
     // use case is for association host organism
@@ -92,22 +84,18 @@ export function GlobalNamesSearchBox({
     }
   };
 
-  const onVirusNameChange = value => {
-    setIsVirusName(value.checked);
-  };
-
   return (
     <div className="card card-body">
-      <div className="d-flex align-items-center mb-3">
+      <div className="d-flex align-items-center">
         <div className="flex-grow-1">
           {isDetermination ? (
             <div className="input-group">
               <input
                 aria-label={formatMessage("globalNameSearchLabel")}
                 className="form-control global-name-input"
-                onChange={e => onInputChange(e.target.value)}
-                onFocus={e => e.target.select()}
-                onKeyDown={e => {
+                onChange={(e) => onInputChange(e.target.value)}
+                onFocus={(e) => e.target.select()}
+                onKeyDown={(e) => {
                   if (e.keyCode === 13) {
                     e.preventDefault();
                     doThrottledSearch(inputValue);
@@ -115,24 +103,10 @@ export function GlobalNamesSearchBox({
                 }}
                 value={inputValue}
               />
-              <label className="mx-2">
-                <strong>{formatMessage("virusNames")}</strong>
-                <input
-                  type="checkbox"
-                  className="global-name-virus-check"
-                  style={{
-                    display: "block",
-                    height: "20px",
-                    marginLeft: "15px",
-                    width: "20px"
-                  }}
-                  onChange={e => onVirusNameChange(e.target)}
-                />
-              </label>
               <button
                 style={{ width: "10rem" }}
                 onClick={doThrottledSearch}
-                className="btn btn-primary mx-2 global-name-search-button"
+                className="btn btn-primary global-name-search-button"
                 type="button"
                 disabled={searchIsDisabled}
               >
@@ -144,9 +118,9 @@ export function GlobalNamesSearchBox({
               <input
                 aria-label={formatMessage("colSearchLabel")}
                 className="form-control global-name-input"
-                onChange={e => onInputChange(e.target.value)}
-                onFocus={e => e.target.select()}
-                onKeyDown={e => {
+                onChange={(e) => onInputChange(e.target.value)}
+                onFocus={(e) => e.target.select()}
+                onKeyDown={(e) => {
                   if (e.keyCode === 13) {
                     e.preventDefault();
                     doThrottledSearch(inputValue);
@@ -211,26 +185,26 @@ export function GlobalNamesSearchBox({
       )}
       {searchIsLoading && <LoadingSpinner loading={true} />}
       {!!searchResult && (
-        <div className="list-group">
-          {searchResult
-            ?.filter(result => result.matchType !== "NoMatch")
+        <div className="list-group mt-3">
+          {searchResult.names
+            ?.filter((result) => result.matchType !== "NoMatch")
             ?.map((result, idx) => {
               const link = document.createElement("a");
               link.setAttribute("href", result.bestResult?.outlink);
 
-              const paths = result.bestResult?.classificationPath.split("|");
-              const ranks = result.bestResult?.classificationRanks.split("|");
+              const paths = result?.bestResult?.classificationPath?.split("|");
+              const ranks = result?.bestResult?.classificationRanks?.split("|");
 
-              const familyIdx = ranks.findIndex(path => path === "family");
+              const familyIdx = ranks?.findIndex((path) => path === "family");
               const familyRank =
                 familyIdx >= 0 ? paths[familyIdx] + ": " : undefined;
 
               let displayText = result.bestResult?.matchedName;
               inputValue
                 .split(" ")
-                .filter(val => !!val?.length)
+                .filter((val) => !!val?.length)
                 .map(
-                  val =>
+                  (val) =>
                     (displayText = displayText.replace(val, `<b>${val}</b>`))
                 );
 
@@ -245,7 +219,7 @@ export function GlobalNamesSearchBox({
 
               const detail: ScientificNameSourceDetails = {};
               detail.labelHtml = link.innerHTML ?? "";
-              detail.sourceUrl = link.href;
+              detail.sourceUrl = link.href.replace("undefined", "list");
               detail.recordedOn = dateSupplier();
               detail.classificationPath = result.bestResult?.classificationPath;
               detail.classificationRanks =
@@ -262,7 +236,13 @@ export function GlobalNamesSearchBox({
                   className="list-group-item list-group-item-action d-flex"
                 >
                   <div className="flex-grow-1 d-flex align-items-center gn-search-result-label">
-                    <span dangerouslySetInnerHTML={{ __html: safeHtmlLink }} />
+                    {result.bestResult.outlink ? (
+                      <span
+                        dangerouslySetInnerHTML={{ __html: safeHtmlLink }}
+                      />
+                    ) : (
+                      <span>{detail.currentName}</span>
+                    )}
                   </div>
                   <FormikButton
                     className="btn btn-primary global-name-select-button"
@@ -295,7 +275,7 @@ export async function globalNamesQuery<T>({
   url,
   params,
   searchValue,
-  fetchJson = urlArg => window.fetch(urlArg).then(res => res.json())
+  fetchJson = (urlArg) => window.fetch(urlArg).then((res) => res.json())
 }: GlobalNamesSearchParams): Promise<T | null> {
   if (!searchValue?.trim()) {
     return null;

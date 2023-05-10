@@ -79,7 +79,7 @@ export function StorageUnitForm({
         ? submittedValues.name
         : [submittedValues.name];
       delete submittedValues.isMultiple;
-      names.map(unitName =>
+      names.map((unitName) =>
         savedArgs.push({
           resource: { ...submittedValues, name: unitName },
           type: "storage-unit"
@@ -124,7 +124,7 @@ export function StorageUnitFormFields({
   const { readOnly, initialValues } = useDinaFormContext();
   const { formatMessage } = useDinaIntl();
   const [showTextAreaInput, setShowTextAreaInput] = useState(false);
-  const onStorageUnitMultipleToggled = checked => {
+  const onStorageUnitMultipleToggled = (checked) => {
     setShowTextAreaInput(checked);
   };
 
@@ -138,18 +138,10 @@ export function StorageUnitFormFields({
         />
       </div>
       <div className="row">
-        <ResourceSelectField<StorageUnitType>
-          className="col-md-6"
-          model="collection-api/storage-unit-type"
-          name="storageUnitType"
-          optionLabel={it => it.name}
-          filter={filterBy(["name"])}
-          omitNullOption={true}
-          readOnlyLink="/collection/storage-unit-type/view?id="
-        />
         <div className="col-md-6 d-flex ">
           {!readOnly && !initialValues.id && (
             <ToggleField
+              className="me-4"
               onChangeExternal={onStorageUnitMultipleToggled}
               name="isMultiple"
               label={formatMessage("multipleUnits")}
@@ -157,7 +149,7 @@ export function StorageUnitFormFields({
           )}
           {!showTextAreaInput && (
             <TextField
-              className="ms-4 flex-grow-1"
+              className="flex-grow-1"
               name="name"
               label={formatMessage("storageUnitName")}
             />
@@ -165,12 +157,28 @@ export function StorageUnitFormFields({
 
           {showTextAreaInput && (
             <StringArrayField
-              className="ms-4 flex-grow-1"
+              className="flex-grow-1"
               name="name"
               label={formatMessage("storageUnitName")}
             />
           )}
         </div>
+        <ResourceSelectField<StorageUnitType>
+          className="col-md-6"
+          model="collection-api/storage-unit-type"
+          name="storageUnitType"
+          optionLabel={(it) => it.name}
+          filter={filterBy(["name"])}
+          omitNullOption={true}
+          readOnlyLink="/collection/storage-unit-type/view?id="
+        />
+      </div>
+      <div className="row">
+        <TextField
+          className="col-md-6"
+          name="barcode"
+          label={formatMessage("field_barcode")}
+        />
       </div>
       {readOnly ? (
         <FieldWrapper
@@ -190,7 +198,7 @@ export function StorageUnitFormFields({
           parentIdInURL={parentIdInURL}
         />
       )}
-      {readOnly && <StorageUnitChildrenViewer parentId={initialValues.id} />}
+      {readOnly && <StorageUnitChildrenViewer storageUnit={initialValues} />}
       {readOnly && (
         <div className="row">
           <DateField className="col-md-6" name="createdOn" showTime={true} />

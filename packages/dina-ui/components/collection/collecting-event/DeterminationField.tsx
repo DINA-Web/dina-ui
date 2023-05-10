@@ -8,7 +8,7 @@ import {
   useDinaFormContext
 } from "common-ui";
 import { FormikContextType, useFormikContext } from "formik";
-import { flatMap, get, isArray } from "lodash";
+import { get, isArray } from "lodash";
 import { useState } from "react";
 import { PersonSelectField } from "../..";
 import { TypeStatusEnum } from "../../../../dina-ui/types/collection-api/resources/TypeStatus";
@@ -16,15 +16,16 @@ import { DinaMessage, useDinaIntl } from "../../../intl/dina-ui-intl";
 import {
   Determination,
   MaterialSample,
+  Organism,
   Vocabulary
 } from "../../../types/collection-api";
-import { ManagedAttributesEditor } from "../../object-store/managed-attributes/ManagedAttributesEditor";
-import { useAutocompleteSearchButFallbackToRsqlApiSearch } from "../../search/useAutocompleteSearchButFallbackToRsqlApiSearch";
+import { ManagedAttributesEditor } from "../../managed-attributes/ManagedAttributesEditor";
 import {
   GlobalNamesField,
   SelectedScientificNameView
 } from "../global-names/GlobalNamesField";
 import { TabbedArrayField } from "../TabbedArrayField";
+import { find, compact } from "lodash";
 
 export interface DeterminationFieldProps {
   className?: string;
@@ -76,7 +77,7 @@ export function DeterminationField({
   const initialIndex = Math.max(
     0,
     (get(initialValues, determinationsPath) as Determination[])?.findIndex(
-      dtmntn => dtmntn?.isPrimary
+      (dtmntn) => dtmntn?.isPrimary
     ) ?? 0
   );
 
@@ -157,36 +158,22 @@ export function DeterminationField({
                 <FieldSet
                   legend={<DinaMessage id="verbatimDeterminationLegend" />}
                   className="non-strip"
+                  sectionName="organism-verbatim-determination-section"
                 >
                   <TextFieldWithMultiplicationButton
                     {...fieldProps("verbatimScientificName")}
                     className="verbatimScientificName"
                   />
-                  <AutoSuggestTextField<MaterialSample>
+                  <AutoSuggestTextField<Organism>
                     {...fieldProps("verbatimDeterminer")}
-                    query={() => ({
-                      path: "collection-api/material-sample"
-                    })}
-                    suggestion={sample =>
-                      flatMap(
-                        sample.organism?.map(organism =>
-                          organism?.determination?.map(
-                            det => det?.verbatimDeterminer
-                          )
-                        )
-                      ) ?? []
-                    }
-                    alwaysShowSuggestions={true}
-                    useCustomQuery={(searchQuery, querySpec) =>
-                      useAutocompleteSearchButFallbackToRsqlApiSearch<MaterialSample>(
-                        {
-                          searchQuery,
-                          querySpec,
-                          indexName: "dina_material_sample_index",
-                          searchField: "determination.verbatimDeterminer"
-                        }
-                      )
-                    }
+                    elasticSearchBackend={{
+                      indexName: "dina_material_sample_index",
+                      searchField:
+                        "included.attributes.determination.verbatimDeterminer",
+                      option: (determination) =>
+                        determination?.determination?.[0]?.verbatimDeterminer
+                    }}
+                    preferredBackend={"elastic-search"}
                   />
                   <TextField {...fieldProps("verbatimDate")} />
                   <TextField
@@ -201,23 +188,35 @@ export function DeterminationField({
                 <FieldSet
                   legend={<DinaMessage id="typeSpecimen" />}
                   className="non-strip"
+                  sectionName="organism-type-specimen-section"
                 >
                   <AutoSuggestTextField<Vocabulary>
                     {...fieldProps("typeStatus")}
-                    query={() => ({
-                      path: "collection-api/vocabulary/typeStatus"
-                    })}
-                    suggestion={(vocabElement, searchValue) =>
-                      vocabElement?.vocabularyElements
-                        ?.filter(it => it?.name !== TypeStatusEnum.NONE)
-                        .filter(it =>
-                          it?.name
-                            ?.toLowerCase?.()
-                            ?.includes(searchValue?.toLowerCase?.())
+                    jsonApiBackend={{
+                      query: () => ({
+                        path: "collection-api/vocabulary/typeStatus"
+                      }),
+                      option: (vocabElement, searchValue) =>
+                        compact(
+                          vocabElement?.vocabularyElements
+                            ?.filter((it) => it?.name !== TypeStatusEnum.NONE)
+                            .filter((it) =>
+                              it?.name
+                                ?.toLowerCase?.()
+                                ?.includes(searchValue?.toLowerCase?.())
+                            )
+                            .map(
+                              (it) =>
+                                find(
+                                  it?.multilingualTitle?.titles || [],
+                                  (item) => item.lang === locale
+                                )?.title ||
+                                it.name ||
+                                ""
+                            ) ?? []
                         )
-                        .map(it => it?.labels?.[locale] ?? "")
-                    }
-                    alwaysShowSuggestions={true}
+                    }}
+                    blankSearchBackend={"json-api"}
                   />
                   <TextField
                     {...fieldProps("typeStatusEvidence")}
@@ -229,6 +228,7 @@ export function DeterminationField({
                 <FieldSet
                   legend={<DinaMessage id="determination" />}
                   className="non-strip"
+                  sectionName="organism-determination-section"
                 >
                   {/* determination scientific name is used for display readonly and edit plain string entry  */}
 
@@ -346,10 +346,9 @@ export function DeterminationField({
                   attributeSelectorWidth={12}
                   fieldSetProps={{
                     legend: <DinaMessage id="determinationManagedAttributes" />,
-                    enabledFields: null,
-                    className: "non-strip"
+                    className: "non-strip",
+                    sectionName: "organism-managed-attributes-section"
                   }}
-                  showCustomViewDropdown={!isTemplate}
                   managedAttributeOrderFieldName="determinationManagedAttributesOrder"
                   visibleAttributeKeys={visibleManagedAttributeKeys}
                 />

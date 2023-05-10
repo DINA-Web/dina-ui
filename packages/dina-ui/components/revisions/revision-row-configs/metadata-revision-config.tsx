@@ -1,7 +1,7 @@
 import { DateView } from "common-ui";
 import Link from "next/link";
 import { Metadata, Person } from "../../../types/objectstore-api";
-import { ManagedAttributesViewer } from "../../object-store/managed-attributes/ManagedAttributesViewer";
+import { ManagedAttributesViewer } from "../../managed-attributes/ManagedAttributesViewer";
 import { ReferenceLink } from "../ReferenceLink";
 import { RevisionRowConfig } from "../revision-row-config";
 
@@ -24,7 +24,7 @@ export const METADATA_REVISION_ROW_CONFIG: RevisionRowConfig<Metadata> = {
             baseApiPath="agent-api"
             type="person"
             reference={relation}
-            name={person => person.displayName}
+            name={(person) => person.displayName}
             href="/person/view?id="
           />
         )
@@ -38,7 +38,7 @@ export const METADATA_REVISION_ROW_CONFIG: RevisionRowConfig<Metadata> = {
             baseApiPath="agent-api"
             type="person"
             reference={relation}
-            name={person => person.displayName}
+            name={(person) => person.displayName}
             href="/person/view?id="
           />
         )
@@ -47,10 +47,8 @@ export const METADATA_REVISION_ROW_CONFIG: RevisionRowConfig<Metadata> = {
     // Show the entire value of the metadata map in a key-value table:
     managedAttributes: ({ original: { value } }) => (
       <ManagedAttributesViewer
-        managedAttributeApiPath={key =>
-          `objectstore-api/managed-attribute/${key}`
-        }
         values={value}
+        managedAttributeApiPath="objectstore-api/managed-attribute"
       />
     )
   }

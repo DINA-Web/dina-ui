@@ -8,7 +8,7 @@ import {
   stringArrayCell
 } from "common-ui";
 import Link from "next/link";
-import { TableColumn } from "packages/common-ui/lib/list-page/types";
+import { TableColumn } from "common-ui/lib/list-page/types";
 import { Component, useMemo, useState } from "react";
 import { Head, Nav, thumbnailCell } from "../../../components";
 import {
@@ -42,7 +42,7 @@ export const METADATA_FILTER_ATTRIBUTES: FilterAttribute[] = [
     type: "DROPDOWN",
     resourcePath: "agent-api/person",
     filter: filterBy(["displayName"]),
-    optionLabel: person => (person as Person).displayName ?? person.id
+    optionLabel: (person) => (person as Person).displayName ?? person.id
   }
 ];
 
@@ -52,22 +52,22 @@ export default function MetadataListPage() {
   const [listLayoutType, setListLayoutType] =
     useLocalStorage<MetadataListLayoutType>(LIST_LAYOUT_STORAGE_KEY);
 
-  const [previewMetadata, setPreviewMetadata] = useState<Metadata | null>(null);
+  const [previewMetadata, setPreviewMetadata] = useState<any | null>(null);
   const [tableSectionWidth, previewSectionWidth] = previewMetadata?.id
     ? [8, 4]
     : [12, 0];
 
   const METADATA_TABLE_COLUMNS: TableColumn<Metadata>[] = [
     thumbnailCell({
-      bucketField: "bucket",
-      fileIdentifierField: "fileIdentifier"
+      bucketField: "data.attributes.bucket",
+      fileIdentifierField: "data.attributes.fileIdentifier"
     }),
     {
       Cell: ({ original: { id, data } }) =>
         data?.attributes?.originalFilename ? (
-          <a href={`/object-store/object/view?id=${id}`} id={`file-name-${id}`}>
-            {data?.attributes?.originalFilename}
-          </a>
+          <Link href={`/object-store/object/view?id=${id}`} passHref={true}>
+            <a id={`file-name-${id}`}>{data?.attributes?.originalFilename}</a>
+          </Link>
         ) : null,
       label: "originalFilename",
       accessor: "data.attributes.originalFilename",
@@ -139,7 +139,7 @@ export default function MetadataListPage() {
           </div>
           <div className="list-inline-item">
             <ListLayoutSelector
-              onChange={newValue => setListLayoutType(newValue)}
+              onChange={(newValue) => setListLayoutType(newValue)}
               value={listLayoutType ?? undefined}
             />
           </div>
@@ -156,15 +156,24 @@ export default function MetadataListPage() {
             <SplitPagePanel>
               <QueryPage
                 indexName={"dina_object_store_index"}
+                dynamicFieldMapping={{
+                  fields: [
+                    {
+                      type: "managedAttribute",
+                      label: "managedAttributes",
+                      path: "data.attributes.managedAttributes",
+                      apiEndpoint: "objectstore-api/managed-attribute"
+                    }
+                  ],
+                  relationshipFields: []
+                }}
                 columns={METADATA_TABLE_COLUMNS}
                 bulkDeleteButtonProps={{
                   typeName: "metadata",
                   apiBaseUrl: "/objectstore-api"
                 }}
-                bulkEditPath={ids => ({
-                  pathname: "/object-store/metadata/edit",
-                  query: { metadataIds: ids.join(",") }
-                })}
+                bulkEditPath={"/object-store/metadata/bulk-edit"}
+                singleEditPath={"/object-store/metadata/edit"}
                 defaultSort={[
                   {
                     desc: true,
@@ -209,7 +218,7 @@ export default function MetadataListPage() {
                   <div style={{ height: "2.5rem" }}>
                     <Link
                       href={`/object-store/object/${
-                        previewMetadata.resourceExternalURL
+                        previewMetadata.data?.attributes?.resourceExternalURL
                           ? "external-resource-view"
                           : "view"
                       }?id=${previewMetadata.id}`}

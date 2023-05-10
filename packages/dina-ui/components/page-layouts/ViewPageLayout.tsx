@@ -36,6 +36,7 @@ export type ViewPageLayoutProps<T extends KitsuResource> =
     queryOptions?: QueryOptions<T, unknown>;
     form: (formProps: ResourceFormProps<T>) => ReactNode;
     entityLink: string;
+    specialListUrl?: string;
     type: string;
     apiBaseUrl: string;
 
@@ -48,16 +49,21 @@ export type ViewPageLayoutProps<T extends KitsuResource> =
     /** main tag class, defaults to "container" */
     mainClass?: string;
 
-    isRestricted?: boolean;
-
     // Override page elements:
     editButton?: (formProps: ResourceFormProps<T>) => ReactNode;
     deleteButton?: (formProps: ResourceFormProps<T>) => ReactNode;
+    showEditButton?: boolean;
+    showDeleteButton?: boolean;
     /** Show the link to the "revisions" page if there is one. */
     showRevisionsLink?: boolean;
 
     /** Show the link to the "revisions" page at page bottom as link. */
     showRevisionsLinkAtBottom?: boolean;
+
+    /** Pass a react node of a tooltip, recommend setting the placement to the right. */
+    tooltipNode?: ReactNode;
+
+    alterInitialValues?: (resource: PersistedResource<T>) => any;
   };
 
 export interface ResourceFormProps<T extends KitsuResource> {
@@ -65,22 +71,36 @@ export interface ResourceFormProps<T extends KitsuResource> {
   readOnly: boolean;
 }
 
-/** Generic page layout for viewing one record. */
+/**
+ * Generic page layout for viewing one record.
+ *
+ * This component supports the use of queries or custom query hooks.
+ *
+ * For normal queries, it will add the "include-dina-permission" header automatically. For
+ * custom hooks you will need to apply that logic if needed.
+ *
+ * If a permissionProvider is returned with the data then the buttons will disappear automatically
+ * if the user does not have the correct permissions.
+ */
 export function ViewPageLayout<T extends KitsuResource>({
   form,
   query,
   customQueryHook,
   queryOptions,
   entityLink,
+  specialListUrl,
   type,
   apiBaseUrl,
   nameField = "name",
   editButton,
   deleteButton,
+  showDeleteButton = true,
+  showEditButton = true,
   mainClass = "container",
   showRevisionsLink,
-  isRestricted,
-  showRevisionsLinkAtBottom
+  showRevisionsLinkAtBottom,
+  tooltipNode,
+  alterInitialValues
 }: ViewPageLayoutProps<T>) {
   const router = useRouter();
   const id = String(router.query.id);
@@ -100,19 +120,22 @@ export function ViewPageLayout<T extends KitsuResource>({
           const resource = data as PersistedResource<T>;
 
           const formProps = {
-            initialValues: resource,
+            initialValues: alterInitialValues?.(resource) ?? resource,
             readOnly: true
           };
 
-          const canEdit = isRestricted
-            ? data.meta?.permissions?.includes("update")
+          // Check the request to see if a permission provider is present.
+          const permissionsProvided = data.meta?.permissionsProvider;
+
+          const canEdit = permissionsProvided
+            ? data.meta?.permissions?.includes("update") ?? false
             : true;
-          const canDelete = isRestricted
-            ? data.meta?.permissions?.includes("delete")
+          const canDelete = permissionsProvided
+            ? data.meta?.permissions?.includes("delete") ?? false
             : true;
 
           const nameFields = castArray(nameField);
-          const title = [...nameFields, "id"].reduce(
+          let title = [...nameFields, "id"].reduce(
             (lastValue, currentField) =>
               lastValue ||
               (typeof currentField === "function"
@@ -120,18 +143,31 @@ export function ViewPageLayout<T extends KitsuResource>({
                 : get(data, currentField)),
             ""
           );
+          // if title is array, only take first element
+          if (Array.isArray(title)) {
+            title = title[0];
+          }
 
           return (
             <>
               <Head title={title} />
               <ButtonBar className="gap-2">
-                <BackButton
-                  entityId={id}
-                  className="me-auto"
-                  entityLink={entityLink}
-                  byPassView={true}
-                />
-                {canEdit &&
+                {specialListUrl ? (
+                  <Link href={specialListUrl}>
+                    <a className="back-button my-auto me-auto">
+                      <DinaMessage id="backToList" />
+                    </a>
+                  </Link>
+                ) : (
+                  <BackButton
+                    entityId={id}
+                    className="me-auto"
+                    entityLink={entityLink}
+                    byPassView={true}
+                  />
+                )}
+                {showEditButton &&
+                  canEdit &&
                   (editButton?.(formProps) ?? (
                     <EditButton entityId={id} entityLink={entityLink} />
                   ))}
@@ -142,19 +178,25 @@ export function ViewPageLayout<T extends KitsuResource>({
                     </a>
                   </Link>
                 )}
-                {canDelete &&
+                {showDeleteButton &&
+                  canDelete &&
                   (deleteButton ? (
                     deleteButton(formProps)
                   ) : (
                     <DeleteButton
                       id={id}
                       options={{ apiBaseUrl }}
-                      postDeleteRedirect={`${entityLink}/list`}
+                      postDeleteRedirect={
+                        specialListUrl ? specialListUrl : `${entityLink}/list`
+                      }
                       type={type}
                     />
                   ))}
               </ButtonBar>
-              <h1 id="wb-cont">{title}</h1>
+              <h1 id="wb-cont">
+                {title}
+                {tooltipNode}
+              </h1>
               {form(formProps)}
               {showRevisionsLinkAtBottom && (
                 <Link href={`${entityLink}/revisions?id=${id}`}>

@@ -1,7 +1,12 @@
 import { useLocalStorage } from "@rehooks/local-storage";
-import { useApiClient, useQuery } from "common-ui";
+import {
+  processExtensionValuesLoading,
+  processExtensionValuesSaving,
+  useApiClient,
+  useQuery
+} from "common-ui";
 import { FormikContextType } from "formik";
-import { InputResource, PersistedResource } from "kitsu";
+import { PersistedResource } from "kitsu";
 import { compact, omit, orderBy, toPairs } from "lodash";
 import { useMemo } from "react";
 import * as yup from "yup";
@@ -12,7 +17,6 @@ import { SourceAdministrativeLevel } from "../../../types/collection-api/resourc
 import { SRSEnum } from "../../../types/collection-api/resources/SRS";
 import { Person } from "../../../types/objectstore-api";
 import { AllowAttachmentsConfig } from "../../object-store";
-
 export const DEFAULT_VERBATIM_COORDSYS_KEY = "collecting-event-coord_system";
 export const DEFAULT_VERBATIM_SRS_KEY = "collecting-event-srs";
 
@@ -22,7 +26,7 @@ export function useCollectingEventQuery(id?: string | null) {
   // TODO disable the fetch query when the ID is undefined.
   const collectingEventQuery = useQuery<CollectingEvent>(
     {
-      path: `collection-api/collecting-event/${id}?include=collectors,attachment,collectionMethod`
+      path: `collection-api/collecting-event/${id}?include=collectors,attachment,collectionMethod,protocol`
     },
     {
       // Return undefined when ID is undefined:
@@ -72,10 +76,18 @@ export function useCollectingEventQuery(id?: string | null) {
           );
 
         srcAdminLevels?.map(
-          admn =>
+          (admn) =>
             (admn.name += admn.placeType ? " [ " + admn.placeType + " ] " : "")
         );
         data.srcAdminLevels = srcAdminLevels;
+
+        // Process loaded back-end data into data structure that Forkmiks can use
+        if (data.extensionValues) {
+          data.extensionValuesForm = processExtensionValuesLoading(
+            data.extensionValues
+          );
+          delete data.extensionValues;
+        }
       }
     }
   );
@@ -141,7 +153,7 @@ export function useCollectingEventSave({
       submittedValues.collectors.length > 0
     ) {
       (submittedValues as any).relationships.collectors = {
-        data: submittedValues?.collectors.map(collector => ({
+        data: submittedValues?.collectors.map((collector) => ({
           id: collector.id,
           type: "person"
         }))
@@ -156,14 +168,14 @@ export function useCollectingEventSave({
     delete submittedValues.collectorGroups;
 
     // Treat empty array or undefined as null:
-    if (!submittedValues.dwcOtherRecordNumbers?.length) {
-      submittedValues.dwcOtherRecordNumbers = null as any;
+    if (!submittedValues.otherRecordNumbers?.length) {
+      submittedValues.otherRecordNumbers = null as any;
     }
 
     // Add attachments if they were selected:
     (submittedValues as any).relationships.attachment = {
       data:
-        submittedValues.attachment?.map(it => ({
+        submittedValues.attachment?.map((it) => ({
           id: it.id,
           type: it.type
         })) ?? []
@@ -179,7 +191,7 @@ export function useCollectingEventSave({
       for (const assertion of submittedValues.geoReferenceAssertions) {
         const referenceBy = assertion.georeferencedBy;
         if (referenceBy && typeof referenceBy !== "string") {
-          assertion.georeferencedBy = referenceBy.map(it =>
+          assertion.georeferencedBy = referenceBy.map((it) =>
             typeof it !== "string" ? it.id : (null as any)
           );
         }
@@ -199,12 +211,11 @@ export function useCollectingEventSave({
 
     if (srcAdminLevels && srcAdminLevels.length > 0 && srcDetail) {
       const sectionIds = toPairs(submittedValues.selectedSections)
-        .filter(pair => pair[1])
-        .map(pair => pair[0]);
-
+        .filter((pair) => pair[1])
+        .map((pair) => pair[0]);
       if (srcAdminLevels.length > 1) srcDetail.higherGeographicPlaces = [];
       srcAdminLevels
-        .filter(srcAdminLevel => srcAdminLevel)
+        .filter((srcAdminLevel) => srcAdminLevel)
         .map((srcAdminLevel, idx) => {
           const srcAdminLevelName = srcAdminLevel?.name;
           // remove the braceket from placeName
@@ -221,7 +232,7 @@ export function useCollectingEventSave({
             } else {
               if (
                 sectionIds.filter(
-                  id => id === srcAdminLevel.shortId?.toString()
+                  (id) => id === srcAdminLevel.shortId?.toString()
                 ).length
               )
                 srcDetail.selectedGeographicPlace = omit(srcAdminLevel, [
@@ -231,8 +242,9 @@ export function useCollectingEventSave({
             }
           } else {
             if (
-              sectionIds.filter(id => id === srcAdminLevel.shortId?.toString())
-                .length
+              sectionIds.filter(
+                (id) => id === srcAdminLevel.shortId?.toString()
+              ).length
             ) {
               srcDetail.higherGeographicPlaces?.push(
                 omit(srcAdminLevel, ["shortId", "type"])
@@ -253,6 +265,12 @@ export function useCollectingEventSave({
     ) {
       submittedValues.dwcVerbatimCoordinateSystem = null;
     }
+    if (submittedValues.extensionValuesForm) {
+      submittedValues.extensionValues = processExtensionValuesSaving(
+        submittedValues.extensionValuesForm
+      );
+    }
+    delete submittedValues.extensionValuesForm;
 
     const [savedCollectingEvent] = await save<CollectingEvent>(
       [
@@ -300,14 +318,14 @@ function useCollectingEventFormSchema() {
         .string()
         .nullable()
         .test({
-          test: val => (val ? isValidDatePrecision(val) : true),
+          test: (val) => (val ? isValidDatePrecision(val) : true),
           message: formatMessage("field_collectingEvent_startDateTimeError")
         }),
       endEventDateTime: yup
         .string()
         .nullable()
         .test({
-          test: val => (val ? isValidDatePrecision(val) : true),
+          test: (val) => (val ? isValidDatePrecision(val) : true),
           message: formatMessage("field_collectingEvent_endDateTimeError")
         })
     });

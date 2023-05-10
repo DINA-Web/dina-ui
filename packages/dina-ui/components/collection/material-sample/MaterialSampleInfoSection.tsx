@@ -8,9 +8,13 @@ import {
   useDinaFormContext
 } from "common-ui";
 import { DinaMessage, useDinaIntl } from "../../..//intl/dina-ui-intl";
-import { MaterialSample } from "../../..//types/collection-api";
+import {
+  MaterialSample,
+  MATERIAL_SAMPLE_INFO_COMPONENT_NAME
+} from "../../..//types/collection-api";
 import { Vocabulary } from "../../../types/collection-api";
 import { MaterialSampleStateReadOnlyRender } from "../MaterialSampleStateWarning";
+import { find, compact } from "lodash";
 
 export const MATERIALSAMPLE_FIELDSET_FIELDS: (keyof MaterialSample)[] = [
   "materialSampleRemarks",
@@ -31,7 +35,12 @@ export function MaterialSampleInfoSection({ id }: { id?: string }) {
   };
 
   return (
-    <FieldSet id={id} legend={<DinaMessage id="materialSampleInfo" />}>
+    <FieldSet
+      id={id}
+      legend={<DinaMessage id="materialSampleInfo" />}
+      componentName={MATERIAL_SAMPLE_INFO_COMPONENT_NAME}
+      sectionName="material-sample-info-section"
+    >
       <div className="row">
         <div className="col-md-6">
           <ControlledVocabularySelectField
@@ -43,15 +52,24 @@ export function MaterialSampleInfoSection({ id }: { id?: string }) {
           {!readOnly ? (
             <AutoSuggestTextField<Vocabulary>
               name="materialSampleState"
-              query={() => ({
-                path: "collection-api/vocabulary/materialSampleState"
-              })}
-              suggestion={vocabElement =>
-                vocabElement?.vocabularyElements?.map(
-                  it => it?.labels?.[locale] ?? ""
-                ) ?? ""
-              }
-              alwaysShowSuggestions={true}
+              jsonApiBackend={{
+                query: () => ({
+                  path: "collection-api/vocabulary/materialSampleState"
+                }),
+                option: (vocabElement) =>
+                  compact(
+                    vocabElement?.vocabularyElements?.map(
+                      (it) =>
+                        find(
+                          it?.multilingualTitle?.titles || [],
+                          (item) => item.lang === locale
+                        )?.title ||
+                        it.name ||
+                        ""
+                    ) ?? []
+                  )
+              }}
+              blankSearchBackend={"json-api"}
               onChangeExternal={onMaterialSampleStateChanged}
             />
           ) : (
@@ -64,7 +82,7 @@ export function MaterialSampleInfoSection({ id }: { id?: string }) {
       </div>
       {!readOnly && (
         <FieldSpy fieldName="materialSampleState">
-          {materialSampleState =>
+          {(materialSampleState) =>
             materialSampleState ? (
               <div className="row">
                 <DateField

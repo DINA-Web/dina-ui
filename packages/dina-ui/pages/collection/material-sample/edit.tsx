@@ -1,15 +1,15 @@
 import { BackButton, ButtonBar, SubmitButton, withResponse } from "common-ui";
 import { useRouter } from "next/router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Footer,
   Head,
-  MaterialSampleCustomViewSelect,
+  MaterialSampleFormTemplateSelect,
   MaterialSampleForm,
   MaterialSampleFormProps,
   Nav,
   nextSampleInitialValues,
-  useMaterialSampleFormCustomViewSelectState,
+  useMaterialSampleFormTemplateSelectState,
   useMaterialSampleQuery
 } from "../../../components";
 import { SaveAndCopyToNextSuccessAlert } from "../../../components/collection/SaveAndCopyToNextSuccessAlert";
@@ -47,26 +47,30 @@ export default function MaterialSampleEditPage() {
   const {
     navOrder,
     setNavOrder,
-    enabledFields,
-    sampleFormCustomView,
-    setSampleFormCustomView,
-    visibleManagedAttributeKeys
-  } = useMaterialSampleFormCustomViewSelectState();
-
-  const sampleFormProps: Partial<MaterialSampleFormProps> = {
-    navOrder,
-    onChangeNavOrder: setNavOrder,
-    enabledFields,
+    sampleFormTemplate,
+    setSampleFormTemplateUUID,
     visibleManagedAttributeKeys,
+    materialSampleInitialValues,
+    collectingEventInitialValues
+  } = useMaterialSampleFormTemplateSelectState({});
+  const sampleFormProps: Partial<MaterialSampleFormProps> = {
+    formTemplate: sampleFormTemplate,
+    visibleManagedAttributeKeys,
+    materialSample: materialSampleInitialValues,
+    collectingEventInitialValues,
     enableStoredDefaultGroup: true,
     buttonBar: (
       <ButtonBar>
-        <BackButton entityId={id} entityLink="/collection/material-sample" />
+        <BackButton
+          entityId={id}
+          entityLink="/collection/material-sample"
+          reloadLastSearch={true}
+        />
         <div className="flex-grow-1 d-flex">
           <div className="mx-auto">
-            <MaterialSampleCustomViewSelect
-              value={sampleFormCustomView}
-              onChange={setSampleFormCustomView}
+            <MaterialSampleFormTemplateSelect
+              value={sampleFormTemplate}
+              onChange={setSampleFormTemplateUUID}
             />
           </div>
         </div>
@@ -112,9 +116,23 @@ export default function MaterialSampleEditPage() {
           <DinaMessage id={title} />
         </h1>
         {id ? (
-          withResponse(materialSampleQuery, ({ data: sample }) => (
-            <MaterialSampleForm {...sampleFormProps} materialSample={sample} />
-          ))
+          withResponse(materialSampleQuery, ({ data: sample }) => {
+            if (sampleFormTemplate?.id) {
+              Object.keys(materialSampleInitialValues).forEach((key) => {
+                if (!sample[key]) {
+                  sample[key] = materialSampleInitialValues[key];
+                }
+              });
+            }
+            return (
+              <MaterialSampleForm
+                enableReinitialize={true}
+                navOrder={navOrder}
+                {...sampleFormProps}
+                materialSample={sample}
+              />
+            );
+          })
         ) : copyFromId ? (
           withResponse(copyFromQuery, ({ data: originalSample }) => {
             const initialValues = nextSampleInitialValues(originalSample);
@@ -127,7 +145,11 @@ export default function MaterialSampleEditPage() {
             );
           })
         ) : (
-          <MaterialSampleForm {...sampleFormProps} />
+          <MaterialSampleForm
+            enableReinitialize={true}
+            navOrder={navOrder}
+            {...sampleFormProps}
+          />
         )}
       </main>
       <Footer />

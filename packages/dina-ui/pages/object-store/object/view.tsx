@@ -1,12 +1,15 @@
 import {
-  BackToListButton,
   ButtonBar,
   DeleteButton,
   DinaForm,
-  LoadingSpinner
+  LoadingSpinner,
+  generateUUIDTree,
+  BackButton,
+  CustomQueryPageView
 } from "common-ui";
 import Link from "next/link";
 import { useRouter } from "next/router";
+import { useMetadataViewQuery } from "../../../components/object-store/metadata/useMetadata";
 import {
   Footer,
   Head,
@@ -14,13 +17,10 @@ import {
   NotPubliclyReleasableWarning,
   TagsAndRestrictionsSection
 } from "../../../components";
-import {
-  ExifView,
-  MetadataDetails,
-  useMetadataQuery
-} from "../../../components/object-store";
+import { ExifView, MetadataDetails } from "../../../components/object-store";
 import { MetadataFileView } from "../../../components/object-store/metadata/MetadataFileView";
 import { DinaMessage } from "../../../intl/dina-ui-intl";
+import { ELASTIC_SEARCH_COLUMN } from "../../../../dina-ui/components/collection/material-sample/MaterialSampleRelationshipColumns";
 
 const OBJECT_DETAILS_PAGE_CSS = `
   .file-viewer-wrapper img {
@@ -29,12 +29,18 @@ const OBJECT_DETAILS_PAGE_CSS = `
   }
 `;
 
-export default function MetadataViewPage() {
+export interface MetadataViewPageProps {
+  reloadLastSearch?: boolean;
+}
+
+export default function MetadataViewPage({
+  reloadLastSearch
+}: MetadataViewPageProps) {
   const router = useRouter();
 
-  const id = String(router.query.id);
+  const uuid = String(router.query.id);
 
-  const { loading, response } = useMetadataQuery(id);
+  const { loading, response } = useMetadataViewQuery(uuid);
 
   const preview = false;
 
@@ -44,27 +50,50 @@ export default function MetadataViewPage() {
 
   if (response) {
     const metadata = response.data;
+    const customViewQuery = metadata?.id
+      ? generateUUIDTree(metadata?.id, "data.relationships.attachment.data.id")
+      : undefined;
+
+    // Check the request to see if a permission provider is present.
+    const permissionsProvided = metadata.meta?.permissionsProvider;
+
+    const canEdit = permissionsProvided
+      ? metadata.meta?.permissions?.includes("update") ?? false
+      : true;
+    const canDelete = permissionsProvided
+      ? metadata.meta?.permissions?.includes("delete") ?? false
+      : true;
 
     const buttonBar = (
       <ButtonBar>
-        <BackToListButton entityLink="/object-store/object" />
-        <Link href={`/object-store/metadata/single-record-edit?id=${id}`}>
-          <a className="btn btn-primary ms-auto" style={{ width: "10rem" }}>
-            <DinaMessage id="editButtonText" />
-          </a>
-        </Link>
-        <Link href={`/object-store/metadata/revisions?id=${id}`}>
+        <BackButton
+          byPassView={true}
+          className="me-auto"
+          entityId={uuid}
+          entityLink="/object-store/object"
+          reloadLastSearch={reloadLastSearch ?? true}
+        />
+        {canEdit && (
+          <Link href={`/object-store/metadata/edit?id=${uuid}`}>
+            <a className="btn btn-primary ms-auto" style={{ width: "10rem" }}>
+              <DinaMessage id="editButtonText" />
+            </a>
+          </Link>
+        )}
+        <Link href={`/object-store/metadata/revisions?id=${uuid}`}>
           <a className="btn btn-info">
             <DinaMessage id="revisionsButtonText" />
           </a>
         </Link>
-        <DeleteButton
-          className="ms-5"
-          id={id}
-          options={{ apiBaseUrl: "/objectstore-api" }}
-          postDeleteRedirect="/object-store/object/list"
-          type="metadata"
-        />
+        {canDelete && (
+          <DeleteButton
+            className="ms-5"
+            id={uuid}
+            options={{ apiBaseUrl: "/objectstore-api" }}
+            postDeleteRedirect="/object-store/object/list?reloadLastSearch"
+            type="metadata"
+          />
+        )}
       </ButtonBar>
     );
 
@@ -89,6 +118,26 @@ export default function MetadataViewPage() {
                   />
                   <MetadataDetails metadata={metadata} />
                   <ExifView objectUpload={metadata.objectUpload} />
+                  {customViewQuery && (
+                    <CustomQueryPageView
+                      titleKey="attachedMaterialSamples"
+                      columns={ELASTIC_SEARCH_COLUMN}
+                      indexName={"dina_material_sample_index"}
+                      viewMode={customViewQuery ? true : false}
+                      customViewQuery={customViewQuery ?? undefined}
+                      customViewFields={
+                        customViewQuery
+                          ? [
+                              {
+                                fieldName:
+                                  "data.relationships.attachment.data.id",
+                                type: "uuid"
+                              }
+                            ]
+                          : undefined
+                      }
+                    />
+                  )}
                 </DinaForm>
               </div>
             </div>

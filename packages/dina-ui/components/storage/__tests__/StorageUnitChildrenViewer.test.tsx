@@ -6,7 +6,7 @@ import { StorageUnitChildrenViewer } from "../StorageUnitChildrenViewer";
 
 const STORAGE_UNIT_CHILDREN = ["B", "C", "D"].map<
   PersistedResource<StorageUnit>
->(letter => ({
+>((letter) => ({
   id: letter,
   group: "group",
   name: letter,
@@ -15,8 +15,8 @@ const STORAGE_UNIT_CHILDREN = ["B", "C", "D"].map<
     id: "BOX",
     name: "Box",
     group: "test-group",
-    type: "storage-unit-type"
-  }
+    type: "storage-unit-type",
+  },
 }));
 
 // Initial container:
@@ -26,7 +26,7 @@ const STORAGE_A: PersistedResource<StorageUnit> = {
   group: "group",
   name: "A",
   type: "storage-unit",
-  storageUnitChildren: STORAGE_UNIT_CHILDREN
+  storageUnitChildren: STORAGE_UNIT_CHILDREN,
 };
 
 /** Target container. */
@@ -34,27 +34,19 @@ const STORAGE_B: PersistedResource<StorageUnit> = {
   id: "B",
   group: "group",
   name: "B",
-  type: "storage-unit"
-};
-
-/** Storage unit with no parent */
-const STORAGE_X: PersistedResource<StorageUnit> = {
-  id: "X",
-  group: "group",
-  name: "X",
-  type: "storage-unit"
+  type: "storage-unit",
 };
 
 // Just return what is passed to it:
-const mockSave = jest.fn(async ops => ops.map(op => op.resource));
+const mockSave = jest.fn(async (ops) => ops.map((op) => op.resource));
 const mockPush = jest.fn();
 const mockReload = jest.fn();
 
 jest.mock("next/router", () => ({
   useRouter: () => ({
     push: mockPush,
-    reload: mockReload
-  })
+    reload: mockReload,
+  }),
 }));
 
 const mockGet = jest.fn<any, any>(async (path, params) => {
@@ -67,22 +59,23 @@ const mockGet = jest.fn<any, any>(async (path, params) => {
               // The initial Storage Unit's children:
               return {
                 data: STORAGE_UNIT_CHILDREN,
-                meta: { totalResourceCount: 3 }
+                meta: { totalResourceCount: 3 },
               };
             case "parentStorageUnit.uuid==X":
               // The initial Storage Unit's children:
               return {
                 data: [],
-                meta: { totalResourceCount: 0 }
+                meta: { totalResourceCount: 0 },
               };
           }
         case "hierarchy,storageUnitType":
           switch (params?.filter?.rsql) {
+            case "group==aafc;group==cnc":
             case "":
               // The searchable table results:
               return {
                 data: [STORAGE_B],
-                meta: { totalResourceCount: 1 }
+                meta: { totalResourceCount: 1 },
               };
           }
       }
@@ -92,10 +85,8 @@ const mockGet = jest.fn<any, any>(async (path, params) => {
       // The fetcher for all current children before executing the Save operation:
       return {
         data: STORAGE_A,
-        meta: { totalResourceCount: 1 }
+        meta: { totalResourceCount: 1 },
       };
-    case "collection-api/storage-unit/X?include=storageUnitChildren":
-      return { data: STORAGE_X };
     case "collection-api/material-sample":
       // Stored material samples:
       if (params?.filter?.rsql === "storageUnit.uuid==A") {
@@ -105,51 +96,85 @@ const mockGet = jest.fn<any, any>(async (path, params) => {
       }
   }
 });
+function arrayEquals(a, b) {
+  return (
+    Array.isArray(a) &&
+    Array.isArray(b) &&
+    a.length === b.length &&
+    a.every((val, index) => val === b[index])
+  );
+}
+
+const mockBulkGet = jest.fn<any, any>(async (paths) => {
+  const storageUnitChildrenPaths = [
+    "/storage-unit/B?include=storageUnitType",
+    "/storage-unit/C?include=storageUnitType",
+    "/storage-unit/D?include=storageUnitType",
+  ];
+  if (arrayEquals(paths, storageUnitChildrenPaths)) {
+    return STORAGE_UNIT_CHILDREN;
+  }
+});
 
 const apiContext = {
   apiClient: {
-    get: mockGet
+    get: mockGet,
   },
-  save: mockSave
+  save: mockSave,
+  bulkGet: mockBulkGet,
+};
+
+const storageUnitA: StorageUnit = {
+  type: "storage-unit",
+  id: "A",
+  name: "testNameA",
+  group: "aafc",
+  storageUnitChildren: STORAGE_UNIT_CHILDREN,
+};
+
+const storageUnitX: StorageUnit = {
+  type: "storage-unit",
+  id: "X",
+  name: "testNameX",
+  group: "aafc",
 };
 
 describe("StorageUnitChildrenViewer component", () => {
   beforeEach(jest.clearAllMocks);
 
-  it("Shows the storage units chlidren", async () => {
+  it("Shows the storage units children.", async () => {
     const wrapper = mountWithAppContext(
       <DinaForm initialValues={{}} readOnly={true}>
-        <StorageUnitChildrenViewer parentId="A" />,
+        <StorageUnitChildrenViewer storageUnit={storageUnitA} />,
       </DinaForm>,
       { apiContext }
     );
 
-    await new Promise(setImmediate);
+    // The page should load initially with a loading spinner.
+    expect(wrapper.find(".spinner-border").exists()).toEqual(true);
+
     await new Promise(setImmediate);
     wrapper.update();
 
-    expect(wrapper.find(".storage-unit-name").map(node => node.text())).toEqual(
-      ["Box B", "Box C", "Box D"]
-    );
+    expect(wrapper.find(".spinner-border").exists()).toEqual(false);
+
+    expect(
+      wrapper.find(".storage-unit-name").map((node) => node.text())
+    ).toEqual(["B (Box)", "C (Box)", "D (Box)"]);
   });
 
   it("Lets you move all stored samples and storages to another storage unit.", async () => {
     const wrapper = mountWithAppContext(
       <DinaForm initialValues={{}} readOnly={true}>
-        <StorageUnitChildrenViewer parentId="A" />,
+        <StorageUnitChildrenViewer storageUnit={storageUnitA} />,
       </DinaForm>,
       { apiContext }
     );
-
-    await new Promise(setImmediate);
-    await new Promise(setImmediate);
-    wrapper.update();
 
     wrapper.find("button.enable-move-content").simulate("click");
 
     await new Promise(setImmediate);
     wrapper.update();
-
     wrapper.find("button.select-storage").simulate("click");
 
     await new Promise(setImmediate);
@@ -157,25 +182,25 @@ describe("StorageUnitChildrenViewer component", () => {
 
     expect(mockSave).lastCalledWith(
       [
-        ...STORAGE_UNIT_CHILDREN.map(unit => ({
+        ...STORAGE_UNIT_CHILDREN.map((unit) => ({
           resource: {
             id: unit.id,
             type: "storage-unit",
-            parentStorageUnit: { type: "storage-unit", id: "B" }
+            parentStorageUnit: { type: "storage-unit", id: "B" },
           },
-          type: "storage-unit"
+          type: "storage-unit",
         })),
         {
           resource: {
             id: "ms-1",
             storageUnit: {
               id: "B",
-              type: "storage-unit"
+              type: "storage-unit",
             },
-            type: "material-sample"
+            type: "material-sample",
           },
-          type: "material-sample"
-        }
+          type: "material-sample",
+        },
       ],
       { apiBaseUrl: "/collection-api" }
     );
@@ -187,14 +212,10 @@ describe("StorageUnitChildrenViewer component", () => {
     // Render a storage unit with no children:
     const wrapper = mountWithAppContext(
       <DinaForm initialValues={{}} readOnly={true}>
-        <StorageUnitChildrenViewer parentId="X" />,
+        <StorageUnitChildrenViewer storageUnit={storageUnitX} />,
       </DinaForm>,
       { apiContext }
     );
-
-    await new Promise(setImmediate);
-    await new Promise(setImmediate);
-    wrapper.update();
 
     wrapper.find("button.add-existing-as-child").simulate("click");
 
@@ -213,10 +234,10 @@ describe("StorageUnitChildrenViewer component", () => {
           resource: {
             id: "B",
             type: "storage-unit",
-            parentStorageUnit: { type: "storage-unit", id: "X" }
+            parentStorageUnit: { type: "storage-unit", id: "X" },
           },
-          type: "storage-unit"
-        }
+          type: "storage-unit",
+        },
       ],
       { apiBaseUrl: "/collection-api" }
     );

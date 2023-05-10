@@ -1,3 +1,4 @@
+import useSWR from "swr";
 import {
   AutoSuggestTextField,
   CheckBoxWithoutWrapper,
@@ -13,11 +14,14 @@ import {
   StringArrayField,
   TextField,
   TextFieldWithCoordButtons,
-  useDinaFormContext
+  useDinaFormContext,
+  FieldSpy,
+  DataEntryField,
+  useQuery,
+  ResourceSelectField
 } from "common-ui";
 import { Field, FormikContextType } from "formik";
 import { ChangeEvent, useRef, useState } from "react";
-import useSWR from "swr";
 import {
   AttachmentsField,
   CollectionMethodSelectField,
@@ -29,7 +33,11 @@ import {
   TagsAndRestrictionsSection
 } from "../..";
 import { DinaMessage, useDinaIntl } from "../../../intl/dina-ui-intl";
-import { Vocabulary } from "../../../types/collection-api";
+import {
+  COLLECTING_EVENT_COMPONENT_NAME,
+  Protocol,
+  Vocabulary
+} from "../../../types/collection-api";
 import {
   CollectingEvent,
   GeographicPlaceNameSource
@@ -43,7 +51,7 @@ import {
   SourceAdministrativeLevel
 } from "../../../types/collection-api/resources/GeographicPlaceNameSourceDetail";
 import { AllowAttachmentsConfig } from "../../object-store";
-import { ManagedAttributesEditor } from "../../object-store/managed-attributes/ManagedAttributesEditor";
+import { ManagedAttributesEditor } from "../../managed-attributes/ManagedAttributesEditor";
 import { GeoReferenceAssertionField } from "../GeoReferenceAssertionField";
 import {
   nominatimAddressDetailSearch,
@@ -51,6 +59,9 @@ import {
   NominatumApiAddressDetailSearchResult
 } from "./GeographySearchBox";
 import { SetCoordinatesFromVerbatimButton } from "./SetCoordinatesFromVerbatimButton";
+import Link from "next/link";
+import { find, compact } from "lodash";
+import { FieldExtension } from "packages/dina-ui/types/collection-api/resources/FieldExtension";
 
 interface CollectingEventFormLayoutProps {
   setDefaultVerbatimCoordSys?: (newValue: string | undefined | null) => void;
@@ -75,7 +86,7 @@ export function CollectingEventFormLayout({
 
   // Check if Georeferences are empty
   const georeferencesEmpty: [] = initialValues.geoReferenceAssertions.map(
-    georeference => {
+    (georeference) => {
       for (const key in georeference) {
         if (
           georeference[key] !== null &&
@@ -88,7 +99,7 @@ export function CollectingEventFormLayout({
     }
   );
   const hideGeoreferences: boolean = georeferencesEmpty.every(
-    element => element === true
+    (element) => element === true
   );
 
   const [geoAssertionTabIdx, setGeoAssertionTabIdx] = useState(0);
@@ -99,6 +110,10 @@ export function CollectingEventFormLayout({
   const [hideCustomPlace, setHideCustomPlace] = useState(true);
   const [hideSelectionCheckBox, setHideSelectionCheckBox] = useState(true);
   const [selectedSearchResult, setSelectedSearchResult] = useState<{}>();
+  const [
+    customGeographicPlaceCheckboxState,
+    setCustomGeographicPlaceCheckboxState
+  ] = useState(false);
 
   const { isValidating: detailResultsIsLoading } = useSWR(
     [selectedSearchResult, "nominatimAddressDetailSearch"],
@@ -155,11 +170,15 @@ export function CollectingEventFormLayout({
     if (isTemplate) {
       // Include the hidden geographicPlaceNameSource and sourceUrl values in the enabled template fields:
       formik.setFieldValue(
-        "templateCheckboxes['geographicPlaceNameSource']",
+        "templateCheckboxes['" +
+          COLLECTING_EVENT_COMPONENT_NAME +
+          ".current-geographic-place.geographicPlaceNameSource']",
         true
       );
       formik.setFieldValue(
-        "templateCheckboxes['geographicPlaceNameSourceDetail.sourceUrl']",
+        "templateCheckboxes['" +
+          COLLECTING_EVENT_COMPONENT_NAME +
+          ".current-geographic-place.geographicPlaceNameSourceDetail.sourceUrl']",
         true
       );
     }
@@ -198,9 +217,8 @@ export function CollectingEventFormLayout({
   ) {
     const editableSrcAdmnLevels: SourceAdministrativeLevel[] = [];
     let detail: SourceAdministrativeLevel = {};
-    detailResults?.address?.map(addr => {
-      // omitting country and state
-      if (
+    detailResults?.address?.map((addr) => {
+      const isTargetType =
         addr.type !== "country" &&
         addr.type !== "state" &&
         addr.type !== "country_code" &&
@@ -208,8 +226,10 @@ export function CollectingEventFormLayout({
         addr.place_type !== "state" &&
         addr.place_type !== "country" &&
         addr.isaddress &&
-        (addr.osm_id || addr.place_id)
-      ) {
+        (addr.osm_id || addr.place_id);
+
+      // omitting country and state
+      if (isTargetType) {
         detail.id = addr.osm_id;
         detail.element = addr.osm_type;
         detail.placeType = addr.place_type ?? addr.class;
@@ -259,24 +279,32 @@ export function CollectingEventFormLayout({
     if (isTemplate) {
       // Uncheck the templateCheckboxes in this form section:
       formik.setFieldValue(
-        "templateCheckboxes['geographicPlaceNameSource']",
+        "templateCheckboxes['" +
+          COLLECTING_EVENT_COMPONENT_NAME +
+          ".current-geographic-place.geographicPlaceNameSource']",
         false
       );
       formik.setFieldValue(
-        "templateCheckboxes['geographicPlaceNameSourceDetail.sourceUrl']",
+        "templateCheckboxes['" +
+          COLLECTING_EVENT_COMPONENT_NAME +
+          ".current-geographic-place.geographicPlaceNameSourceDetail.sourceUrl']",
         false
       );
       formik.setFieldValue(
-        "templateCheckboxes['geographicPlaceNameSourceDetail.country']",
+        "templateCheckboxes['" +
+          COLLECTING_EVENT_COMPONENT_NAME +
+          ".current-geographic-place.geographicPlaceNameSourceDetail.country']",
         false
       );
       formik.setFieldValue(
-        "templateCheckboxes['geographicPlaceNameSourceDetail.stateProvince']",
+        "templateCheckboxes['" +
+          COLLECTING_EVENT_COMPONENT_NAME +
+          ".current-geographic-place.geographicPlaceNameSourceDetail.stateProvince']",
         false
       );
       for (let idx = 0; idx <= 10; idx++) {
         formik.setFieldValue(
-          `templateCheckboxes['srcAdminLevels[${idx}]']`,
+          `templateCheckboxes['${COLLECTING_EVENT_COMPONENT_NAME}.current-geographic-place.srcAdminLevels[${idx}]']`,
           false
         );
       }
@@ -329,17 +357,19 @@ export function CollectingEventFormLayout({
     }
   };
 
-  const addCustomPlaceName = form => {
+  const addCustomPlaceName = (form) => {
     if (!customPlaceValue || customPlaceValue.length === 0) return;
     // Add user entered custom place in front
     const customPlaceAsInSrcAdmnLevel: SourceAdministrativeLevel = {};
     customPlaceAsInSrcAdmnLevel.name = customPlaceValue;
     customPlaceAsInSrcAdmnLevel.type = "place-section";
     customPlaceAsInSrcAdmnLevel.shortId = 0;
+    customPlaceAsInSrcAdmnLevel.element = undefined;
+    customPlaceAsInSrcAdmnLevel.id = undefined;
 
     const srcAdminLevels = form.values.srcAdminLevels;
 
-    srcAdminLevels.map(lev => {
+    srcAdminLevels.map((lev) => {
       lev.shortId = lev.shortId + 1;
     });
     srcAdminLevels.unshift(customPlaceAsInSrcAdmnLevel);
@@ -347,7 +377,7 @@ export function CollectingEventFormLayout({
 
     // Make the custom place selected by default
     const selectedSections = form.values.selectedSections;
-    selectedSections.unshift(true);
+    selectedSections?.unshift(true);
 
     setHideCustomPlace(true);
   };
@@ -359,20 +389,25 @@ export function CollectingEventFormLayout({
   ) {
     layoutWrapperRef.current
       ?.querySelectorAll(`#${id} .templateCheckBox`)
-      ?.forEach(field => {
+      ?.forEach((field) => {
         // tslint:disable-next-line
         form.setFieldValue(field.attributes["name"]?.value, e.target.checked);
       });
   }
   const collectingEventAttachmentsComponent = (
-    <AttachmentsField
-      name="attachment"
-      title={<DinaMessage id="collectingEventAttachments" />}
-      allowNewFieldName="attachmentsConfig.allowNew"
-      allowExistingFieldName="attachmentsConfig.allowExisting"
-      allowAttachmentsConfig={attachmentsConfig}
-      attachmentPath={`collection-api/collecting-event/${initialValues.id}/attachment`}
-    />
+    <DinaFormSection
+      componentName={COLLECTING_EVENT_COMPONENT_NAME}
+      sectionName="collecting-event-attachments-section"
+    >
+      <AttachmentsField
+        name="attachment"
+        title={<DinaMessage id="collectingEventAttachments" />}
+        allowNewFieldName="attachmentsConfig.allowNew"
+        allowExistingFieldName="attachmentsConfig.allowExisting"
+        allowAttachmentsConfig={attachmentsConfig}
+        attachmentPath={`collection-api/collecting-event/${initialValues.id}/attachment`}
+      />
+    </DinaFormSection>
   );
   const collectingEventManagedAttributesComponent = (
     <ManagedAttributesEditor
@@ -380,9 +415,10 @@ export function CollectingEventFormLayout({
       managedAttributeApiPath="collection-api/managed-attribute"
       managedAttributeComponent="COLLECTING_EVENT"
       fieldSetProps={{
-        legend: <DinaMessage id="collectingEventManagedAttributes" />
+        legend: <DinaMessage id="collectingEventManagedAttributes" />,
+        componentName: COLLECTING_EVENT_COMPONENT_NAME,
+        sectionName: "collecting-event-managed-attributes-section"
       }}
-      showCustomViewDropdown={!isTemplate}
       managedAttributeOrderFieldName="managedAttributesOrder"
       visibleAttributeKeys={visibleManagedAttributeKeys}
     />
@@ -392,6 +428,8 @@ export function CollectingEventFormLayout({
       fieldName="geographicPlaceNameSourceDetail"
       legend={<DinaMessage id="toponymyLegend" />}
       className="non-strip"
+      componentName={COLLECTING_EVENT_COMPONENT_NAME}
+      sectionName="current-geographic-place"
     >
       <div
         style={{
@@ -413,11 +451,12 @@ export function CollectingEventFormLayout({
                         </strong>
                       </label>
                       <input
+                        disabled={customGeographicPlaceCheckboxState}
                         aria-label="customPlace"
                         className="p-2 form-control"
                         style={{ width: "60%" }}
-                        onChange={e => setCustomPlaceValue(e.target.value)}
-                        onKeyDown={e => {
+                        onChange={(e) => setCustomPlaceValue(e.target.value)}
+                        onKeyDown={(e) => {
                           if (e.key === "Enter") {
                             e.preventDefault();
                             if (customPlaceValue?.length > 0) {
@@ -442,6 +481,10 @@ export function CollectingEventFormLayout({
                   <PlaceSectionsSelectionField
                     name="srcAdminLevels"
                     hideSelectionCheckBox={hideSelectionCheckBox}
+                    setCustomGeographicPlaceCheckboxState={
+                      setCustomGeographicPlaceCheckboxState
+                    }
+                    customPlaceValue={customPlaceValue}
                   />
                 ) : null}
                 <DinaFormSection horizontal={[3, 9]}>
@@ -471,9 +514,11 @@ export function CollectingEventFormLayout({
                   )}
                   <div className="col-md-4">
                     {detail.sourceUrl && (
-                      <a href={`${detail.sourceUrl}`} className="btn btn-info">
-                        <DinaMessage id="viewDetailButtonLabel" />
-                      </a>
+                      <Link href={`${detail.sourceUrl}`} passHref={true}>
+                        <a className="btn btn-info">
+                          <DinaMessage id="viewDetailButtonLabel" />
+                        </a>
+                      </Link>
                     )}
                   </div>
                 </div>
@@ -509,7 +554,7 @@ export function CollectingEventFormLayout({
                             className={
                               hasVerbatimLocality ? "btn btn-link" : "d-none"
                             }
-                            onClick={state =>
+                            onClick={(state) =>
                               doGeoSearch(state.dwcVerbatimLocality)
                             }
                           >
@@ -519,7 +564,7 @@ export function CollectingEventFormLayout({
                             className={
                               hasDecimalCoords ? "btn btn-link" : "d-none"
                             }
-                            onClick={state => {
+                            onClick={(state) => {
                               const assertion =
                                 state.geoReferenceAssertions?.[
                                   geoAssertionTabIdx
@@ -543,31 +588,56 @@ export function CollectingEventFormLayout({
       </div>
     </FieldSet>
   );
+
   return (
     <div ref={layoutWrapperRef}>
-      <NotPubliclyReleasableWarning />
-      {!isTemplate && (
-        <DinaFormSection horizontal={[3, 9]}>
-          <div className="row">
-            <StringArrayField
-              className="col-md-6"
-              name="dwcOtherRecordNumbers"
-            />
-            <GroupSelectField
-              className="col-md-6"
-              name="group"
-              enableStoredDefaultGroup={true}
-            />
-          </div>
-        </DinaFormSection>
-      )}
-      <TagsAndRestrictionsSection resourcePath="collection-api/collecting-event" />
-      <div className="row">
+      <DinaFormSection
+        componentName={COLLECTING_EVENT_COMPONENT_NAME}
+        sectionName="general-section"
+      >
+        <NotPubliclyReleasableWarning />
+        <TagsAndRestrictionsSection resourcePath="collection-api/collecting-event" />
+      </DinaFormSection>
+      <div className="row mb-3">
+        <div>
+          <FieldSet
+            legend={<DinaMessage id="identifiers" />}
+            id="identifiers"
+            className="non-strip"
+            componentName={COLLECTING_EVENT_COMPONENT_NAME}
+            sectionName="identifiers-section"
+          >
+            <div className="row">
+              <div className="col-md-6">
+                <TextField
+                  name="dwcFieldNumber"
+                  tooltipLink="https://aafc-bicoe.github.io/dina-documentation/#_collection_number"
+                  tooltipLinkText="fromDinaUserGuide"
+                />
+                {!isTemplate && <StringArrayField name="otherRecordNumbers" />}
+              </div>
+              <div className="col-md-6">
+                {!isTemplate && (
+                  <DinaFormSection horizontal={[3, 9]}>
+                    <div className="row">
+                      <GroupSelectField
+                        name="group"
+                        enableStoredDefaultGroup={true}
+                      />
+                    </div>
+                  </DinaFormSection>
+                )}
+              </div>
+            </div>
+          </FieldSet>
+        </div>
         <div className="col-md-6">
           <FieldSet
             legend={<DinaMessage id="collectingDateLegend" />}
             id="collectingDateLegend"
-            className="non-strip"
+            className="non-strip h-100"
+            componentName={COLLECTING_EVENT_COMPONENT_NAME}
+            sectionName="collecting-date-section"
           >
             {isTemplate && (
               <Field name="includeAllCollectingDate">
@@ -588,12 +658,10 @@ export function CollectingEventFormLayout({
             <FormattedTextField
               name="startEventDateTime"
               className="startEventDateTime"
-              label={formatMessage("startEventDateTime")}
               placeholder={"YYYY-MM-DDTHH:MM:SS.MMM"}
             />
             <FormattedTextField
               name="endEventDateTime"
-              label={formatMessage("endEventDateTime")}
               placeholder={"YYYY-MM-DDTHH:MM:SS.MMM"}
             />
           </FieldSet>
@@ -602,7 +670,9 @@ export function CollectingEventFormLayout({
           <FieldSet
             legend={<DinaMessage id="collectingAgentsLegend" />}
             id="collectingAgentsLegend"
-            className="non-strip"
+            className="non-strip h-100"
+            componentName={COLLECTING_EVENT_COMPONENT_NAME}
+            sectionName="collecting-agents-section"
           >
             {isTemplate && (
               <Field name="includeAllCollectingAgent">
@@ -616,28 +686,49 @@ export function CollectingEventFormLayout({
                 )}
               </Field>
             )}
-            <AutoSuggestTextField<CollectingEvent>
-              name="dwcRecordedBy"
-              query={(searchValue, ctx) => ({
-                path: "collection-api/collecting-event",
-                filter: {
-                  ...(ctx.values.group && { group: { EQ: ctx.values.group } }),
-                  rsql: `dwcRecordedBy==*${searchValue}*`
-                }
-              })}
-              suggestion={collEvent => collEvent.dwcRecordedBy ?? ""}
-            />
+            <FieldSpy<string> fieldName="group">
+              {(group) => (
+                <AutoSuggestTextField<CollectingEvent>
+                  name="dwcRecordedBy"
+                  jsonApiBackend={{
+                    query: (searchValue, ctx) => ({
+                      path: "collection-api/collecting-event",
+                      filter: {
+                        ...(ctx.values.group && {
+                          group: { EQ: ctx.values.group }
+                        }),
+                        rsql: `dwcRecordedBy==*${searchValue}*`
+                      }
+                    }),
+                    option: (collEvent) => collEvent?.dwcRecordedBy ?? ""
+                  }}
+                  elasticSearchBackend={{
+                    indexName: "dina_material_sample_index",
+                    searchField: "included.attributes.dwcRecordedBy",
+                    group: group ?? undefined,
+                    option: (collEvent) => collEvent?.dwcRecordedBy
+                  }}
+                  preferredBackend={"elastic-search"}
+                />
+              )}
+            </FieldSpy>
             <PersonSelectField name="collectors" isMulti={true} />
-            <TextField name="dwcRecordNumber" />
+            <TextField
+              name="dwcRecordNumber"
+              tooltipLink="https://aafc-bicoe.github.io/dina-documentation/#_collectors_number"
+              tooltipLinkText="fromDinaUserGuide"
+            />
           </FieldSet>
         </div>
       </div>
-      <div className="row">
+      <div className="row mb-3">
         <div className="col-md-6">
           <FieldSet
             legend={<DinaMessage id="verbatimLabelLegend" />}
             id="verbatimLabelLegend"
-            className="non-strip"
+            className="non-strip h-100"
+            componentName={COLLECTING_EVENT_COMPONENT_NAME}
+            sectionName="verbatim-label-section"
           >
             {isTemplate && (
               <Field name="includeAllVerbatimCoordinates">
@@ -656,16 +747,23 @@ export function CollectingEventFormLayout({
             <TextField name="dwcVerbatimLocality" />
             <AutoSuggestTextField<Vocabulary>
               name="dwcVerbatimCoordinateSystem"
-              query={() => ({
-                path: "collection-api/vocabulary/coordinateSystem"
-              })}
-              suggestion={vocabElement =>
-                vocabElement?.vocabularyElements?.map(
-                  it => it?.labels?.[locale] ?? ""
-                ) ?? ""
-              }
+              jsonApiBackend={{
+                query: () => ({
+                  path: "collection-api/vocabulary/coordinateSystem"
+                }),
+                option: (vocabElement) =>
+                  compact(
+                    vocabElement?.vocabularyElements?.map(
+                      (it) =>
+                        find(
+                          it?.multilingualTitle?.titles || [],
+                          (item) => item.lang === locale
+                        )?.title
+                    ) ?? []
+                  )
+              }}
+              blankSearchBackend={"json-api"}
               onSuggestionSelected={onSuggestionSelected}
-              alwaysShowSuggestions={true}
               onChangeExternal={onChangeExternal}
             />
             <Field name="dwcVerbatimCoordinateSystem">
@@ -751,15 +849,24 @@ export function CollectingEventFormLayout({
             </Field>
             <AutoSuggestTextField<Vocabulary>
               name="dwcVerbatimSRS"
-              query={() => ({
-                path: "collection-api/vocabulary/srs"
-              })}
-              suggestion={vocabElement =>
-                vocabElement?.vocabularyElements?.map(
-                  it => it?.labels?.[locale] ?? ""
-                ) ?? ""
-              }
-              alwaysShowSuggestions={true}
+              jsonApiBackend={{
+                query: () => ({
+                  path: "collection-api/vocabulary/srs"
+                }),
+                option: (vocabElement) =>
+                  compact(
+                    vocabElement?.vocabularyElements?.map(
+                      (it) =>
+                        find(
+                          it?.multilingualTitle?.titles || [],
+                          (item) => item.lang === locale
+                        )?.title ||
+                        it.name ||
+                        ""
+                    ) ?? []
+                  )
+              }}
+              blankSearchBackend={"json-api"}
               onChangeExternal={onChangeExternal}
             />
             <TextField name="dwcVerbatimElevation" />
@@ -790,7 +897,9 @@ export function CollectingEventFormLayout({
         <div className="col-md-6">
           <FieldSet
             legend={<DinaMessage id="collectingEventDetails" />}
-            className="non-strip"
+            className="non-strip h-100"
+            componentName={COLLECTING_EVENT_COMPONENT_NAME}
+            sectionName="collecting-event-details"
           >
             <TextField name="habitat" />
             <TextField
@@ -821,19 +930,38 @@ export function CollectingEventFormLayout({
                 />
               )}
             </Field>
+            <ResourceSelectField<Protocol>
+              name="protocol"
+              filter={filterBy(["name"], {
+                extraFilters: [
+                  {
+                    selector: "protocolType",
+                    comparison: "==",
+                    arguments: "collection_method"
+                  }
+                ]
+              })}
+              model="collection-api/protocol"
+              optionLabel={(protocol) => protocol.name}
+              omitNullOption={false}
+            />
             <AutoSuggestTextField<CollectingEvent>
               name="substrate"
               customName={"collectingEventSubstrate"}
               tooltipLink="https://aafc-bicoe.github.io/dina-documentation/#_substrate"
               tooltipLinkText="fromDinaUserGuide"
-              query={(searchValue, ctx) => ({
-                path: "collection-api/collecting-event",
-                filter: {
-                  ...(ctx.values.group && { group: { EQ: ctx.values.group } }),
-                  rsql: `substrate==${searchValue}*`
-                }
-              })}
-              suggestion={collEvent => collEvent.substrate ?? ""}
+              jsonApiBackend={{
+                query: (searchValue, ctx) => ({
+                  path: "collection-api/collecting-event",
+                  filter: {
+                    ...(ctx.values.group && {
+                      group: { EQ: ctx.values.group }
+                    }),
+                    rsql: `substrate==${searchValue}*`
+                  }
+                }),
+                option: (collEvent) => collEvent?.substrate ?? ""
+              }}
             />
             <NumberRangeFields
               names={[
@@ -850,7 +978,6 @@ export function CollectingEventFormLayout({
           </FieldSet>
         </div>
       </div>
-
       <div className="row">
         <div className="col-md-6">
           {!readOnly ? (
@@ -871,16 +998,30 @@ export function CollectingEventFormLayout({
             : null}
         </div>
       </div>
-      <DinaFormSection
-        // Disabled the template's restrictions for this section:
-        enabledFields={null}
-      >
+      <div>
+        <DinaFormSection
+          componentName={COLLECTING_EVENT_COMPONENT_NAME}
+          sectionName="collecting-event-field-extension-section"
+        >
+          <DataEntryField
+            legend={<DinaMessage id="fieldExtensions" />}
+            name="extensionValuesForm"
+            readOnly={readOnly}
+            isTemplate={isTemplate}
+            blockOptionsEndpoint={`collection-api/extension`}
+            blockOptionsFilter={{
+              "extension.fields.dinaComponent": "COLLECTING_EVENT"
+            }}
+          />
+        </DinaFormSection>
+      </div>
+      <>
         {!readOnly
           ? collectingEventManagedAttributesComponent
           : JSON.stringify(initialValues?.managedAttributes) !== "{}" // if read-only, check for managed attributes
           ? collectingEventManagedAttributesComponent
           : null}
-      </DinaFormSection>
+      </>
       <div className="mb-3">
         {!readOnly
           ? collectingEventAttachmentsComponent

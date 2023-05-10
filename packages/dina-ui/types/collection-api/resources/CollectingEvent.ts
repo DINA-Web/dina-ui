@@ -6,9 +6,10 @@ import {
 } from "./GeographicPlaceNameSourceDetail";
 import { CollectorGroup } from "./CollectorGroup";
 import { GeoReferenceAssertion } from "./GeoReferenceAssertion";
-import { ManagedAttributeValues } from "../../objectstore-api";
+import { ManagedAttributeValues } from "./ManagedAttribute";
 
 import { JsonValue } from "type-fest";
+import { Protocol } from "./Protocol";
 
 export interface CollectingEventAttributes {
   type: "collecting-event";
@@ -26,7 +27,7 @@ export interface CollectingEventAttributes {
   dwcVerbatimSRS?: string;
   dwcVerbatimElevation?: string;
   dwcVerbatimDepth?: string;
-  dwcOtherRecordNumbers?: string[];
+  otherRecordNumbers?: string[];
   dwcRecordNumber?: string;
   dwcMinimumElevationInMeters?: number;
   dwcMinimumDepthInMeters?: number;
@@ -60,6 +61,9 @@ export interface CollectingEventAttributes {
   managedAttributes?: JsonValue;
 
   selectedSections?: string[];
+  extensionValues?: any;
+  extensionValuesForm?: any;
+  protocol?: Protocol;
 }
 
 export enum GeographicPlaceNameSource {

@@ -30,11 +30,11 @@ const mockPush = jest.fn();
 let mockQuery: any = {};
 
 /** Mock Kitsu "get" method. */
-const mockGet = jest.fn(async model => {
+const mockGet = jest.fn(async (model) => {
   // The get request will return the existing collecting-event.
   if (
     model ===
-    "collection-api/collecting-event/1?include=collectors,attachment,collectionMethod"
+    "collection-api/collecting-event/1?include=collectors,attachment,collectionMethod,protocol"
   ) {
     return { data: testCollectingEvent() };
   } else if (model === "agent-api/person") {
@@ -60,18 +60,18 @@ const mockGet = jest.fn(async model => {
 // Mock API requests:
 const mockPatch = jest.fn();
 
-const mockBulkGet = jest.fn(async paths => {
+const mockBulkGet = jest.fn(async (paths) => {
   if (!paths.length) {
     return [];
   }
   if ((paths[0] as string).startsWith("/person/")) {
-    return paths.map(path => ({
+    return paths.map((path) => ({
       id: path.replace("/person/", ""),
       type: "agent"
     }));
   }
   if ((paths[0] as string).startsWith("/metadata/")) {
-    return paths.map(path => ({
+    return paths.map((path) => ({
       id: path.replace("/metadata/", ""),
       type: "metadata",
       originalFilename: "test-file"
@@ -113,6 +113,11 @@ describe("collecting-event edit page", () => {
     const wrapper = mountWithAppContext(<CollectingEventEditPage />, {
       apiContext
     });
+    // Wait for the page to load.
+    await new Promise(setImmediate);
+    wrapper.update();
+
+    expect(wrapper.find(".spinner-border").exists()).toEqual(false);
 
     expect(wrapper.find(".startEventDateTime-field")).toHaveLength(1);
     expect(wrapper.find(".endEventDateTime-field")).toHaveLength(1);
@@ -125,10 +130,10 @@ describe("collecting-event edit page", () => {
       }
     });
 
-    // Edit the dwcOtherRecordNumbers
-    wrapper.find(".dwcOtherRecordNumbers-field textarea").simulate("change", {
+    // Edit the otherRecordNumbers
+    wrapper.find(".otherRecordNumbers-field textarea").simulate("change", {
       target: {
-        name: "dwcOtherRecordNumbers",
+        name: "otherRecordNumbers",
         value: "12\n23"
       }
     });
@@ -149,7 +154,7 @@ describe("collecting-event edit page", () => {
               dwcVerbatimSRS: "WGS84 (EPSG:4326)",
               publiclyReleasable: true, // Default value
               verbatimEventDateTime: "From 2019,12,21 4pm to 2019,12,22 5pm",
-              dwcOtherRecordNumbers: ["12", "23"],
+              otherRecordNumbers: ["12", "23"],
               geoReferenceAssertions: [{ isPrimary: true }]
             },
             relationships: {
@@ -306,7 +311,7 @@ describe("collecting-event edit page", () => {
           path: "collecting-event/1",
           value: {
             attributes: {
-              dwcOtherRecordNumbers: ["12", "13", "14"],
+              otherRecordNumbers: ["12", "13", "14"],
               endEventDateTime: "2019-11-12",
               geoReferenceAssertions: [
                 {
@@ -364,6 +369,12 @@ describe("collecting-event edit page", () => {
     const wrapper = mountWithAppContext(<CollectingEventEditPage />, {
       apiContext
     });
+
+    // Wait for the page to load.
+    await new Promise(setImmediate);
+    wrapper.update();
+
+    expect(wrapper.find(".spinner-border").exists()).toEqual(false);
 
     wrapper.find(".group-field Select").prop<any>("onChange")([
       { label: "group", value: "test group" }
@@ -491,7 +502,7 @@ function testCollectingEvent(): CollectingEvent {
       { id: "111", type: "agent" },
       { id: "222", type: "agent" }
     ],
-    dwcOtherRecordNumbers: ["12", "13", "14"],
+    otherRecordNumbers: ["12", "13", "14"],
     geoReferenceAssertions: [
       {
         isPrimary: true,

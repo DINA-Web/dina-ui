@@ -11,22 +11,26 @@ import { default as ReactSwitch, default as Switch } from "react-switch";
 import { AttachmentsEditor } from "../..";
 import { mountWithAppContext } from "../../../test-util/mock-app-context";
 import {
+  ASSOCIATIONS_COMPONENT_NAME,
   blankMaterialSample,
+  COLLECTING_EVENT_COMPONENT_NAME,
+  FormTemplate,
+  IDENTIFIER_COMPONENT_NAME,
+  MANAGED_ATTRIBUTES_COMPONENT_NAME,
   MaterialSample,
+  MATERIAL_SAMPLE_ATTACHMENTS_COMPONENT_NAME,
+  ORGANISMS_COMPONENT_NAME,
+  SCHEDULED_ACTIONS_COMPONENT_NAME,
   StorageUnit
 } from "../../../types/collection-api";
 import { MaterialSampleBulkEditor } from "../MaterialSampleBulkEditor";
+import { deleteFromStorage } from "@rehooks/local-storage";
+import { SAMPLE_FORM_TEMPLATE_KEY } from "../..";
 
 const TEST_COLLECTING_EVENT = {
   id: "col-event-1",
   type: "collecting-event",
   dwcVerbatimLocality: "test initial locality"
-};
-
-const TEST_ACQUISITION_EVENT = {
-  id: "acq-event-1",
-  type: "acquisition-event",
-  receptionRemarks: "test reception remarks"
 };
 
 const TEST_COLLECTION_1 = {
@@ -50,7 +54,7 @@ const TEST_STORAGE_UNIT: PersistedResource<StorageUnit> = {
 };
 
 const TEST_STORAGE_UNITS = ["A", "B", "C"].map<PersistedResource<StorageUnit>>(
-  id => ({
+  (id) => ({
     id,
     type: "storage-unit",
     group: "test-group",
@@ -64,19 +68,697 @@ const TEST_STORAGE_UNITS = ["A", "B", "C"].map<PersistedResource<StorageUnit>>(
   })
 );
 
-/** CustomView with the managed attributes enabled for Material Sample, Collecting Event and Determination. */
+const formTemplate: PersistedResource<FormTemplate> = {
+  id: "cd6d8297-43a0-45c6-b44e-983db917eb11",
+  type: "form-template",
+  name: "test view with managed attributes",
+  group: "cnc",
+  restrictToCreatedBy: false,
+  viewConfiguration: { type: "material-sample-form-template" },
+  components: [
+    {
+      name: "identifiers-component",
+      visible: true,
+      order: 0,
+      sections: [
+        {
+          name: "general-section",
+          visible: true,
+          items: [
+            {
+              defaultValue: undefined,
+              name: "tags",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "projects",
+              visible: false
+            },
+            { defaultValue: undefined, name: "assemblages", visible: false },
+            {
+              defaultValue: undefined,
+              name: "publiclyReleasable",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "notPubliclyReleasableReason",
+              visible: false
+            }
+          ]
+        },
+        {
+          name: "identifiers-section",
+          visible: true,
+          items: [
+            { defaultValue: undefined, name: "collection", visible: false },
+            {
+              defaultValue: "material sample 1",
+              name: "materialSampleName",
+              visible: true
+            },
+            {
+              defaultValue: undefined,
+              name: "useNextSequence",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "dwcOtherCatalogNumbers",
+              visible: false
+            },
+            { defaultValue: "1111", name: "barcode", visible: true }
+          ]
+        }
+      ]
+    },
+    {
+      name: "material-sample-info-component",
+      visible: true,
+      order: 1,
+      sections: [
+        {
+          name: "material-sample-info-section",
+          visible: true,
+          items: [
+            {
+              defaultValue: undefined,
+              name: "materialSampleType",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "materialSampleRemarks",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "materialSampleState",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "stateChangeRemarks",
+              visible: false
+            },
+            { defaultValue: undefined, name: "stateChangedOn", visible: false }
+          ]
+        }
+      ]
+    },
+    {
+      name: "collecting-event-component",
+      visible: true,
+      order: 2,
+      sections: [
+        {
+          name: "general-section",
+          visible: true,
+          items: [
+            { defaultValue: undefined, name: "tags", visible: false },
+            {
+              defaultValue: undefined,
+              name: "publiclyReleasable",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "notPubliclyReleasableReason",
+              visible: false
+            }
+          ]
+        },
+        {
+          name: "identifiers-section",
+          visible: true,
+          items: [
+            { defaultValue: "123", name: "dwcFieldNumber", visible: true }
+          ]
+        },
+        {
+          name: "collecting-date-section",
+          visible: true,
+          items: [
+            {
+              defaultValue: undefined,
+              name: "verbatimEventDateTime",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "startEventDateTime",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "endEventDateTime",
+              visible: false
+            }
+          ]
+        },
+        {
+          name: "collecting-agents-section",
+          visible: true,
+          items: [
+            { defaultValue: undefined, name: "dwcRecordedBy", visible: false },
+            { defaultValue: undefined, name: "collectors", visible: false },
+            {
+              defaultValue: undefined,
+              name: "dwcRecordNumber",
+              visible: false
+            }
+          ]
+        },
+        {
+          name: "verbatim-label-section",
+          visible: true,
+          items: [
+            {
+              defaultValue: undefined,
+              name: "dwcVerbatimLocality",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "dwcVerbatimCoordinateSystem",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "dwcVerbatimCoordinates",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "dwcVerbatimLatitude",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "dwcVerbatimLongitude",
+              visible: false
+            },
+            { defaultValue: undefined, name: "dwcVerbatimSRS", visible: false },
+            {
+              defaultValue: undefined,
+              name: "dwcVerbatimElevation",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "dwcVerbatimDepth",
+              visible: false
+            }
+          ]
+        },
+        {
+          name: "collecting-event-details",
+          visible: true,
+          items: [
+            { defaultValue: undefined, name: "habitat", visible: false },
+            { defaultValue: undefined, name: "host", visible: false },
+            {
+              defaultValue: undefined,
+              name: "collectionMethod",
+              visible: false
+            },
+            { defaultValue: undefined, name: "substrate", visible: false },
+            {
+              defaultValue: undefined,
+              name: "dwcMinimumElevationInMeters",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "dwcMaximumElevationInMeters",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "dwcMinimumDepthInMeters",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "dwcMaximumDepthInMeters",
+              visible: false
+            },
+            { defaultValue: undefined, name: "remarks", visible: false }
+          ]
+        },
+        {
+          name: "georeferencing-section",
+          visible: true,
+          items: [
+            {
+              defaultValue: undefined,
+              name: "geoReferenceAssertions[0].dwcGeoreferenceVerificationStatus",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "geoReferenceAssertions[0].dwcDecimalLatitude",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "geoReferenceAssertions[0].dwcDecimalLongitude",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "geoReferenceAssertions[0].dwcCoordinateUncertaintyInMeters",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "geoReferenceAssertions[0].dwcGeoreferencedDate",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "geoReferenceAssertions[0].dwcGeodeticDatum",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "geoReferenceAssertions[0].literalGeoreferencedBy",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "geoReferenceAssertions[0].georeferencedBy",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "geoReferenceAssertions[0].dwcGeoreferenceProtocol",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "geoReferenceAssertions[0].dwcGeoreferenceSources",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "geoReferenceAssertions[0].dwcGeoreferenceRemarks",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "geoReferenceAssertions",
+              visible: false
+            }
+          ]
+        },
+        {
+          name: "current-geographic-place",
+          visible: true,
+          items: [
+            { defaultValue: undefined, name: "srcAdminLevels", visible: false },
+            {
+              defaultValue: undefined,
+              name: "geographicPlaceNameSourceDetail.stateProvince",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "geographicPlaceNameSourceDetail.country",
+              visible: false
+            }
+          ]
+        },
+        {
+          name: "collecting-event-managed-attributes-section",
+          visible: true,
+          items: []
+        },
+        {
+          name: "collecting-event-attachments-section",
+          visible: true,
+          items: [
+            {
+              defaultValue: undefined,
+              name: "managedAttributes.attachmentsConfig.allowNew",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "managedAttributes.attachmentsConfig.allowExisting",
+              visible: false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: "preparations-component",
+      visible: false,
+      order: 4,
+      sections: [
+        {
+          name: "general-section",
+          visible: true,
+          items: [
+            {
+              defaultValue: undefined,
+              name: "preparationType",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "preparationMethod",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "preservationType",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "preparationFixative",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "preparationMaterials",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "preparationSubstrate",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "preparationRemarks",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "dwcDegreeOfEstablishment",
+              visible: false
+            },
+            { defaultValue: undefined, name: "preparedBy", visible: false },
+            {
+              defaultValue: undefined,
+              name: "preparationDate",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "preparationProtocol",
+              visible: false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: "organisms-component",
+      visible: false,
+      order: 5,
+      sections: [
+        {
+          name: "organisms-general-section",
+          visible: true,
+          items: [
+            {
+              defaultValue: undefined,
+              name: "organism[0].lifeStage",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "organism[0].sex",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "organism[0].remarks",
+              visible: false
+            },
+            { defaultValue: undefined, name: "organism", visible: false }
+          ]
+        },
+        {
+          name: "organism-verbatim-determination-section",
+          visible: true,
+          items: [
+            {
+              defaultValue: undefined,
+              name: "organism[0].determination[0].verbatimScientificName",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "organism[0].determination[0].verbatimDeterminer",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "organism[0].determination[0].verbatimDate",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "organism[0].determination[0].verbatimRemarks",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "organism[0].determination[0].transcriberRemarks",
+              visible: false
+            }
+          ]
+        },
+        {
+          name: "organism-determination-section",
+          visible: true,
+          items: [
+            {
+              defaultValue: undefined,
+              name: "organism[0].determination[0].scientificName",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "organism[0].determination[0].scientificNameInput",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "organism[0].determination[0].determiner",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "organism[0].determination[0].determinedOn",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "organism[0].determination[0].determinationRemarks",
+              visible: false
+            }
+          ]
+        },
+        {
+          name: "organism-type-specimen-section",
+          visible: true,
+          items: [
+            {
+              defaultValue: undefined,
+              name: "organism[0].determination[0].typeStatus",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "organism[0].determination[0].typeStatusEvidence",
+              visible: false
+            }
+          ]
+        },
+        {
+          name: "organism-managed-attributes-section",
+          visible: true,
+          items: []
+        }
+      ]
+    },
+    {
+      name: "associations-component",
+      visible: false,
+      order: 6,
+      sections: [
+        {
+          name: "associations-host-organism-section",
+          visible: true,
+          items: [
+            {
+              defaultValue: undefined,
+              name: "hostOrganism.name",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "hostOrganism.remarks",
+              visible: false
+            }
+          ]
+        },
+        {
+          name: "associations-material-sample-section",
+          visible: true,
+          items: [
+            {
+              defaultValue: undefined,
+              name: "associations.associationType",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "associations.associatedSample",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "associations.remarks",
+              visible: false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: "storage-component",
+      visible: false,
+      order: 7,
+      sections: [
+        {
+          name: "storage-selection-section",
+          visible: true,
+          items: [
+            { defaultValue: undefined, name: "storageUnit", visible: false }
+          ]
+        }
+      ]
+    },
+    {
+      name: "restriction-component",
+      visible: false,
+      order: 8,
+      sections: [
+        {
+          name: "restriction-general-section",
+          visible: true,
+          items: [
+            { defaultValue: undefined, name: "phac_animal_rg", visible: false },
+            { defaultValue: undefined, name: "cfia_ppc", visible: false },
+            { defaultValue: undefined, name: "phac_human_rg", visible: false },
+            { defaultValue: undefined, name: "phac_cl", visible: false },
+            { defaultValue: undefined, name: "isRestricted", visible: false },
+            {
+              defaultValue: undefined,
+              name: "restrictionRemarks",
+              visible: false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: "scheduled-actions-component",
+      visible: false,
+      order: 9,
+      sections: [
+        {
+          name: "scheduled-actions-add-section",
+          visible: true,
+          items: [
+            {
+              defaultValue: undefined,
+              name: "scheduledAction.actionType",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "scheduledAction.actionStatus",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "scheduledAction.date",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "scheduledAction.assignedTo",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "scheduledAction.remarks",
+              visible: false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: "managed-attributes-component",
+      visible: true,
+      order: 10,
+      sections: [
+        {
+          name: "managed-attributes-section",
+          visible: true,
+          items: []
+        }
+      ]
+    },
+    {
+      name: "material-sample-attachments-component",
+      visible: true,
+      order: 11,
+      sections: [
+        {
+          name: "material-sample-attachments-sections",
+          visible: true,
+          items: [
+            {
+              defaultValue: undefined,
+              name: "attachmentsConfig.allowNew",
+              visible: false
+            },
+            {
+              defaultValue: undefined,
+              name: "attachmentsConfig.allowExisting",
+              visible: false
+            }
+          ]
+        }
+      ]
+    }
+  ]
+};
+
+/** FormTemplate with the managed attributes enabled for Material Sample, Collecting Event and Determination. */
 const TEST_CUSTOM_VIEW_WITH_MANAGED_ATTRIBUTES = {
   id: "cd6d8297-43a0-45c6-b44e-983db917eb11",
-  type: "custom-view",
+  type: "form-template",
   createdOn: "2022-03-03T16:36:30.422992Z",
   createdBy: "cnc-cm",
   name: "test view with managed attributes",
   group: "cnc",
   restrictToCreatedBy: false,
   viewConfiguration: {
-    type: "material-sample-form-custom-view",
-    navOrder: ["managedAttributes-section", "identifiers-section"],
-    formTemplates: {
+    type: "material-sample-form-template",
+    navOrder: [MANAGED_ATTRIBUTES_COMPONENT_NAME, IDENTIFIER_COMPONENT_NAME],
+    formTemplate: {
       MATERIAL_SAMPLE: {
         templateFields: {
           materialSampleName: { enabled: true, defaultValue: "default id" },
@@ -115,7 +797,7 @@ const mockGet = jest.fn<any, any>(async (path, params) => {
           materialSampleName: "material-sample-500"
         }
       };
-    case "collection-api/collecting-event/col-event-1?include=collectors,attachment,collectionMethod":
+    case "collection-api/collecting-event/col-event-1?include=collectors,attachment,collectionMethod,protocol":
       return { data: TEST_COLLECTING_EVENT };
     case "collection-api/storage-unit":
       if (params?.filter?.rsql === "parentStorageUnit.uuid==su-1") {
@@ -126,6 +808,8 @@ const mockGet = jest.fn<any, any>(async (path, params) => {
       return { data: TEST_STORAGE_UNIT };
     case "collection-api/storage-unit/C":
       return { data: TEST_STORAGE_UNITS[2] };
+    case "collection-api/form-template/cd6d8297-43a0-45c6-b44e-983db917eb11":
+      return { data: formTemplate };
     case "collection-api/storage-unit-type":
     case "collection-api/collection":
     case "collection-api/collection-method":
@@ -144,15 +828,13 @@ const mockGet = jest.fn<any, any>(async (path, params) => {
     case "collection-api/vocabulary/associationType":
     case "collection-api/vocabulary/srs":
     case "collection-api/vocabulary/coordinateSystem":
-    case "collection-api/acquisition-event":
-    case "collection-api/custom-view":
     case "collection-api/vocabulary/materialSampleType":
       return { data: [] };
   }
 });
 
 const mockBulkGet = jest.fn<any, any>(async (paths: string[]) => {
-  return paths.map(path => {
+  return paths.map((path) => {
     switch (path) {
       case "metadata/initial-attachment-1":
         return {
@@ -171,7 +853,7 @@ const mockBulkGet = jest.fn<any, any>(async (paths: string[]) => {
           type: "managed-attribute",
           id: "1",
           key: "m1",
-          managedAttributeType: "STRING",
+          vocabularyElementType: "STRING",
           managedAttributeComponent: "MATERIAL_SAMPLE",
           name: "Managed Attribute 1"
         };
@@ -180,7 +862,7 @@ const mockBulkGet = jest.fn<any, any>(async (paths: string[]) => {
           type: "managed-attribute",
           id: "2",
           key: "m2",
-          managedAttributeType: "STRING",
+          vocabularyElementType: "STRING",
           managedAttributeComponent: "MATERIAL_SAMPLE",
           name: "Managed Attribute 2"
         };
@@ -189,7 +871,7 @@ const mockBulkGet = jest.fn<any, any>(async (paths: string[]) => {
           type: "managed-attribute",
           id: "3",
           key: "m3",
-          managedAttributeType: "STRING",
+          vocabularyElementType: "STRING",
           managedAttributeComponent: "MATERIAL_SAMPLE",
           name: "Managed Attribute 3"
         };
@@ -213,8 +895,8 @@ const mockBulkGet = jest.fn<any, any>(async (paths: string[]) => {
   });
 });
 
-const mockSave = jest.fn(ops =>
-  ops.map(op => ({
+const mockSave = jest.fn((ops) =>
+  ops.map((op) => ({
     ...op.resource,
     id: op.resource.id ?? "11111"
   }))
@@ -279,7 +961,6 @@ const TEST_SAMPLES_DIFFERENT_ARRAY_VALUES: InputResource<MaterialSample>[] = [
     ],
     associations: [{ associatedSample: "500", remarks: "initial remarks" }],
     attachment: [{ id: "initial-attachment-1", type: "metadata" }],
-    preparationAttachment: [{ id: "initial-attachment-2", type: "metadata" }],
     scheduledActions: [
       { actionType: "my-action-type", remarks: "initial action" }
     ]
@@ -323,7 +1004,7 @@ const TEST_SAMPLES_DIFFERENT_FLAT_FIELDS_VALUES: InputResource<MaterialSample>[]
 const TEST_SAMPLES_SAME_FLAT_FIELDS_VALUES: InputResource<MaterialSample>[] = [
   "1",
   "2"
-].map(id => ({
+].map((id) => ({
   ...blankMaterialSample(),
   id,
   type: "material-sample",
@@ -372,23 +1053,6 @@ const TEST_SAMPLES_SAME_COLLECTING_EVENT: InputResource<MaterialSample>[] = [
   }
 ];
 
-const TEST_SAMPLES_SAME_COL_AND_ACQ_EVENTS: InputResource<MaterialSample>[] = [
-  {
-    ...blankMaterialSample(),
-    id: "1",
-    type: "material-sample",
-    collectingEvent: TEST_COLLECTING_EVENT,
-    acquisitionEvent: TEST_ACQUISITION_EVENT
-  },
-  {
-    ...blankMaterialSample(),
-    id: "2",
-    type: "material-sample",
-    collectingEvent: TEST_COLLECTING_EVENT,
-    acquisitionEvent: TEST_ACQUISITION_EVENT
-  }
-];
-
 const TEST_SAMPLES_SAME_STORAGE_UNIT: InputResource<MaterialSample>[] = [
   {
     ...blankMaterialSample(),
@@ -426,6 +1090,7 @@ const TEST_SAMPLES_SAME_HOST_ORGANISM: InputResource<MaterialSample>[] = [
 ];
 
 describe("MaterialSampleBulkEditor", () => {
+  beforeEach(() => deleteFromStorage("test-user." + SAMPLE_FORM_TEMPLATE_KEY));
   beforeEach(jest.clearAllMocks);
 
   it("Bulk creates material samples.", async () => {
@@ -510,7 +1175,7 @@ describe("MaterialSampleBulkEditor", () => {
 
     // The saved samples are mocked by mockSave and are passed into the onSaved callback.
     // Check the IDs to make sure they were saved:
-    expect(mockOnSaved.mock.calls[0][0].map(sample => sample.id)).toEqual([
+    expect(mockOnSaved.mock.calls[0][0].map((sample) => sample.id)).toEqual([
       "11111",
       "11111",
       "11111"
@@ -896,7 +1561,7 @@ describe("MaterialSampleBulkEditor", () => {
       ".enable-catalogue-info",
       ".enable-associations",
       ".enable-scheduled-actions"
-    ].forEach(selector =>
+    ].forEach((selector) =>
       wrapper
         .find(`.tabpanel-EDIT_ALL ${selector}`)
         .find(Switch)
@@ -909,34 +1574,37 @@ describe("MaterialSampleBulkEditor", () => {
     // Shows the warnings:
     expect(
       wrapper
-        .find(".tabpanel-EDIT_ALL .organisms-section .multiple-values-warning")
-        .exists()
-    ).toEqual(true);
-    expect(
-      wrapper
         .find(
-          ".tabpanel-EDIT_ALL #material-sample-attachments-section .multiple-values-warning"
+          ".tabpanel-EDIT_ALL ." +
+            ORGANISMS_COMPONENT_NAME +
+            " .multiple-values-warning"
         )
         .exists()
     ).toEqual(true);
     expect(
       wrapper
         .find(
-          ".tabpanel-EDIT_ALL #preparation-protocols-section .multiple-values-warning"
+          ".tabpanel-EDIT_ALL #" +
+            MATERIAL_SAMPLE_ATTACHMENTS_COMPONENT_NAME +
+            " .multiple-values-warning"
         )
         .exists()
     ).toEqual(true);
     expect(
       wrapper
         .find(
-          ".tabpanel-EDIT_ALL #associations-section .multiple-values-warning"
+          ".tabpanel-EDIT_ALL #" +
+            ASSOCIATIONS_COMPONENT_NAME +
+            " .multiple-values-warning"
         )
         .exists()
     ).toEqual(true);
     expect(
       wrapper
         .find(
-          ".tabpanel-EDIT_ALL #scheduled-actions-section .multiple-values-warning"
+          ".tabpanel-EDIT_ALL #" +
+            SCHEDULED_ACTIONS_COMPONENT_NAME +
+            " .multiple-values-warning"
         )
         .exists()
     ).toEqual(true);
@@ -958,7 +1626,6 @@ describe("MaterialSampleBulkEditor", () => {
               type: "material-sample",
               associations: undefined,
               attachment: undefined,
-              preparationAttachment: undefined,
               projects: undefined
             },
             type: "material-sample"
@@ -970,7 +1637,6 @@ describe("MaterialSampleBulkEditor", () => {
               relationships: {},
               type: "material-sample",
               attachment: undefined,
-              preparationAttachment: undefined,
               projects: undefined
             },
             type: "material-sample"
@@ -982,7 +1648,6 @@ describe("MaterialSampleBulkEditor", () => {
               relationships: {},
               type: "material-sample",
               attachment: undefined,
-              preparationAttachment: undefined,
               projects: undefined
             },
             type: "material-sample"
@@ -1011,7 +1676,7 @@ describe("MaterialSampleBulkEditor", () => {
       ".enable-catalogue-info",
       ".enable-associations",
       ".enable-scheduled-actions"
-    ].forEach(selector =>
+    ].forEach((selector) =>
       wrapper
         .find(`.tabpanel-EDIT_ALL ${selector}`)
         .find(Switch)
@@ -1023,11 +1688,10 @@ describe("MaterialSampleBulkEditor", () => {
 
     // Click the Override All buttons:
     for (const section of [
-      ".organisms-section",
-      "#material-sample-attachments-section",
-      "#preparation-protocols-section",
-      "#associations-section",
-      "#scheduled-actions-section"
+      "." + ORGANISMS_COMPONENT_NAME,
+      "#" + MATERIAL_SAMPLE_ATTACHMENTS_COMPONENT_NAME,
+      "#" + ASSOCIATIONS_COMPONENT_NAME,
+      "#" + SCHEDULED_ACTIONS_COMPONENT_NAME
     ]) {
       wrapper.find(`${section} button.override-all-button`).simulate("click");
       wrapper.find(".are-you-sure-modal form").simulate("submit");
@@ -1038,16 +1702,22 @@ describe("MaterialSampleBulkEditor", () => {
     // Organisms section opens with an initial value, so it has the green indicator on the fieldset:
     expect(
       wrapper
-        .find(".tabpanel-EDIT_ALL fieldset#organisms-section .legend-wrapper")
+        .find(
+          ".tabpanel-EDIT_ALL fieldset#" +
+            ORGANISMS_COMPONENT_NAME +
+            " .legend-wrapper"
+        )
         .first()
         .hasClass("changed-field")
     ).toEqual(true);
-    // The other overidable sections don't have an initial value,
+    // The other over-ridable sections don't have an initial value,
     // so they don't initially show the green indicator on the fieldset:
     expect(
       wrapper
         .find(
-          ".tabpanel-EDIT_ALL fieldset#material-sample-attachments-section .legend-wrapper"
+          ".tabpanel-EDIT_ALL fieldset#" +
+            MATERIAL_SAMPLE_ATTACHMENTS_COMPONENT_NAME +
+            " .legend-wrapper"
         )
         .first()
         .hasClass("changed-field")
@@ -1055,15 +1725,9 @@ describe("MaterialSampleBulkEditor", () => {
     expect(
       wrapper
         .find(
-          ".tabpanel-EDIT_ALL fieldset#preparation-protocols-section .legend-wrapper"
-        )
-        .first()
-        .hasClass("changed-field")
-    ).toEqual(false);
-    expect(
-      wrapper
-        .find(
-          ".tabpanel-EDIT_ALL fieldset#associations-section .legend-wrapper"
+          ".tabpanel-EDIT_ALL fieldset#" +
+            ASSOCIATIONS_COMPONENT_NAME +
+            " .legend-wrapper"
         )
         .first()
         .hasClass("changed-field")
@@ -1072,7 +1736,9 @@ describe("MaterialSampleBulkEditor", () => {
     expect(
       wrapper
         .find(
-          ".tabpanel-EDIT_ALL fieldset#associations-section fieldset.associations-tabs .legend-wrapper"
+          ".tabpanel-EDIT_ALL fieldset#" +
+            ASSOCIATIONS_COMPONENT_NAME +
+            " fieldset.associations-tabs .legend-wrapper"
         )
         .first()
         .hasClass("changed-field")
@@ -1080,7 +1746,9 @@ describe("MaterialSampleBulkEditor", () => {
     expect(
       wrapper
         .find(
-          ".tabpanel-EDIT_ALL fieldset#scheduled-actions-section .legend-wrapper"
+          ".tabpanel-EDIT_ALL fieldset#" +
+            SCHEDULED_ACTIONS_COMPONENT_NAME +
+            " .legend-wrapper"
         )
         .first()
         .hasClass("changed-field")
@@ -1094,33 +1762,37 @@ describe("MaterialSampleBulkEditor", () => {
       )
       .simulate("change", { target: { value: "new-scientific-name" } });
     wrapper
-      .find(".tabpanel-EDIT_ALL #material-sample-attachments-section")
+      .find(".tabpanel-EDIT_ALL #" + MATERIAL_SAMPLE_ATTACHMENTS_COMPONENT_NAME)
       .find(AttachmentsEditor)
       .prop("onChange")([{ id: "new-attachment-id", type: "metadata" }]);
     wrapper
-      .find(".tabpanel-EDIT_ALL #preparation-protocols-section")
-      .find(AttachmentsEditor)
-      .prop("onChange")([
-      { id: "new-preparation-attachment-id", type: "metadata" }
-    ]);
-    wrapper
-      .find(".tabpanel-EDIT_ALL #associations-section")
+      .find(".tabpanel-EDIT_ALL #" + ASSOCIATIONS_COMPONENT_NAME + "")
       .find(MaterialSampleSearchHelper)
       .prop("onAssociatedSampleSelected")({
       id: "new-sample-assoc",
       type: "material-sample"
     });
     wrapper
-      .find(".tabpanel-EDIT_ALL #associations-section .associationType-field")
+      .find(
+        ".tabpanel-EDIT_ALL #" +
+          ASSOCIATIONS_COMPONENT_NAME +
+          " .associationType-field"
+      )
       .find(CreatableSelect)
       .prop<any>("onChange")({ value: "has_host" });
     wrapper
       .find(
-        ".tabpanel-EDIT_ALL #scheduled-actions-section .actionType-field input"
+        ".tabpanel-EDIT_ALL #" +
+          SCHEDULED_ACTIONS_COMPONENT_NAME +
+          " .actionType-field input"
       )
       .simulate("change", { target: { value: "new-action-type" } });
     wrapper
-      .find(".tabpanel-EDIT_ALL #scheduled-actions-section button.add-button")
+      .find(
+        ".tabpanel-EDIT_ALL #" +
+          SCHEDULED_ACTIONS_COMPONENT_NAME +
+          " button.add-button"
+      )
       .simulate("click");
 
     await new Promise(setImmediate);
@@ -1129,14 +1801,10 @@ describe("MaterialSampleBulkEditor", () => {
     // All overridable fieldsets should now have the green bulk edited indicator:
     expect(
       wrapper
-        .find(".tabpanel-EDIT_ALL fieldset#organisms-section .legend-wrapper")
-        .first()
-        .hasClass("has-bulk-edit-value")
-    ).toEqual(true);
-    expect(
-      wrapper
         .find(
-          ".tabpanel-EDIT_ALL fieldset#material-sample-attachments-section .legend-wrapper"
+          ".tabpanel-EDIT_ALL fieldset#" +
+            ORGANISMS_COMPONENT_NAME +
+            " .legend-wrapper"
         )
         .first()
         .hasClass("has-bulk-edit-value")
@@ -1144,7 +1812,9 @@ describe("MaterialSampleBulkEditor", () => {
     expect(
       wrapper
         .find(
-          ".tabpanel-EDIT_ALL fieldset#preparation-protocols-section .legend-wrapper"
+          ".tabpanel-EDIT_ALL fieldset#" +
+            MATERIAL_SAMPLE_ATTACHMENTS_COMPONENT_NAME +
+            " .legend-wrapper"
         )
         .first()
         .hasClass("has-bulk-edit-value")
@@ -1152,7 +1822,9 @@ describe("MaterialSampleBulkEditor", () => {
     expect(
       wrapper
         .find(
-          ".tabpanel-EDIT_ALL fieldset#associations-section fieldset.associations-tabs .legend-wrapper"
+          ".tabpanel-EDIT_ALL fieldset#" +
+            ASSOCIATIONS_COMPONENT_NAME +
+            " fieldset.associations-tabs .legend-wrapper"
         )
         .first()
         .hasClass("has-bulk-edit-value")
@@ -1160,7 +1832,9 @@ describe("MaterialSampleBulkEditor", () => {
     expect(
       wrapper
         .find(
-          ".tabpanel-EDIT_ALL fieldset#scheduled-actions-section .legend-wrapper"
+          ".tabpanel-EDIT_ALL fieldset#" +
+            SCHEDULED_ACTIONS_COMPONENT_NAME +
+            " .legend-wrapper"
         )
         .first()
         .hasClass("has-bulk-edit-value")
@@ -1197,7 +1871,7 @@ describe("MaterialSampleBulkEditor", () => {
       [[EXPECTED_ORGANISM_SAVE], { apiBaseUrl: "/collection-api" }],
       [
         [
-          ...TEST_SAMPLES_DIFFERENT_ARRAY_VALUES.map(sample => ({
+          ...TEST_SAMPLES_DIFFERENT_ARRAY_VALUES.map((sample) => ({
             type: "material-sample",
             resource: {
               id: sample.id,
@@ -1205,7 +1879,6 @@ describe("MaterialSampleBulkEditor", () => {
               organism: undefined,
               organismsIndividualEntry: undefined,
               organismsQuantity: undefined,
-              preparationAttachment: undefined,
               projects: undefined,
               type: sample.type,
               associations: [
@@ -1220,11 +1893,6 @@ describe("MaterialSampleBulkEditor", () => {
               relationships: {
                 attachment: {
                   data: [{ id: "new-attachment-id", type: "metadata" }]
-                },
-                preparationAttachment: {
-                  data: [
-                    { id: "new-preparation-attachment-id", type: "metadata" }
-                  ]
                 },
                 organism: {
                   data: [{ id: "11111", type: "organism" }]
@@ -1368,7 +2036,7 @@ describe("MaterialSampleBulkEditor", () => {
       wrapper
         .find(".publiclyReleasable-field label")
         // The field is inverted (Not Publicly Releasable) so false -> true:
-        .findWhere(node => node.text().includes("True"))
+        .findWhere((node) => node.text().includes("True"))
         .find("input")
         .prop("checked")
     ).toEqual(true);
@@ -1404,7 +2072,6 @@ describe("MaterialSampleBulkEditor", () => {
               organism: undefined,
               organismsIndividualEntry: undefined,
               organismsQuantity: undefined,
-              preparationAttachment: undefined,
               projects: undefined,
               relationships: {},
               type: "material-sample"
@@ -1418,7 +2085,6 @@ describe("MaterialSampleBulkEditor", () => {
               organism: undefined,
               organismsIndividualEntry: undefined,
               organismsQuantity: undefined,
-              preparationAttachment: undefined,
               projects: undefined,
               relationships: {},
               type: "material-sample"
@@ -1488,7 +2154,6 @@ describe("MaterialSampleBulkEditor", () => {
               organism: undefined,
               organismsIndividualEntry: undefined,
               organismsQuantity: undefined,
-              preparationAttachment: undefined,
               projects: undefined,
               barcode: "edited-barcode",
               relationships: {},
@@ -1503,7 +2168,6 @@ describe("MaterialSampleBulkEditor", () => {
               organism: undefined,
               organismsIndividualEntry: undefined,
               organismsQuantity: undefined,
-              preparationAttachment: undefined,
               projects: undefined,
               relationships: {},
               type: "material-sample"
@@ -1594,19 +2258,6 @@ describe("MaterialSampleBulkEditor", () => {
     await new Promise(setImmediate);
     wrapper.update();
 
-    // All Managed Attributes from all samples are shown in the bulk edit UI:
-    expect(
-      wrapper
-        .find(
-          ".tabpanel-EDIT_ALL .visible-attribute-menu .react-select__multi-value__label"
-        )
-        .map(node => node.text())
-    ).toEqual([
-      "Managed Attribute 1",
-      "Managed Attribute 3",
-      "Managed Attribute 2"
-    ]);
-
     // m1 and m2 have multiple values, so show a blank input with a placeholder:
     expect(
       wrapper
@@ -1661,7 +2312,9 @@ describe("MaterialSampleBulkEditor", () => {
     expect(
       wrapper
         .find(
-          ".tabpanel-EDIT_ALL fieldset#collecting-event-section .legend-wrapper"
+          ".tabpanel-EDIT_ALL fieldset#" +
+            COLLECTING_EVENT_COMPONENT_NAME +
+            " .legend-wrapper"
         )
         .first()
         .find(".has-bulk-edit-value .field-label")
@@ -1694,7 +2347,9 @@ describe("MaterialSampleBulkEditor", () => {
     expect(
       wrapper
         .find(
-          ".tabpanel-EDIT_ALL fieldset#collecting-event-section .legend-wrapper"
+          ".tabpanel-EDIT_ALL fieldset#" +
+            COLLECTING_EVENT_COMPONENT_NAME +
+            " .legend-wrapper"
         )
         .first()
         .find(".has-bulk-edit-value .field-label")
@@ -1788,7 +2443,9 @@ describe("MaterialSampleBulkEditor", () => {
     expect(
       wrapper
         .find(
-          ".tabpanel-EDIT_ALL fieldset#collecting-event-section .legend-wrapper"
+          ".tabpanel-EDIT_ALL fieldset#" +
+            COLLECTING_EVENT_COMPONENT_NAME +
+            " .legend-wrapper"
         )
         .first()
         .find(".has-bulk-edit-value .field-label")
@@ -1839,7 +2496,6 @@ describe("MaterialSampleBulkEditor", () => {
               organism: undefined,
               organismsIndividualEntry: undefined,
               organismsQuantity: undefined,
-              preparationAttachment: undefined,
               projects: undefined,
               type: "material-sample"
             },
@@ -1857,7 +2513,6 @@ describe("MaterialSampleBulkEditor", () => {
               organism: undefined,
               organismsIndividualEntry: undefined,
               organismsQuantity: undefined,
-              preparationAttachment: undefined,
               projects: undefined,
               type: "material-sample"
             },
@@ -1907,7 +2562,7 @@ describe("MaterialSampleBulkEditor", () => {
     // New linked storage unit is indicated:
     expect(
       wrapper.find(".tabpanel-EDIT_ALL .storageUnit-field .storage-path").text()
-    ).toEqual("Box storage unit C");
+    ).toEqual("storage unit C (Box)");
 
     // Save the samples with the new storage unit:
     wrapper.find("button.bulk-save-button").simulate("click");
@@ -1925,7 +2580,6 @@ describe("MaterialSampleBulkEditor", () => {
               organism: undefined,
               organismsIndividualEntry: undefined,
               organismsQuantity: undefined,
-              preparationAttachment: undefined,
               projects: undefined,
               relationships: {},
               storageUnit: {
@@ -1943,7 +2597,6 @@ describe("MaterialSampleBulkEditor", () => {
               organism: undefined,
               organismsIndividualEntry: undefined,
               organismsQuantity: undefined,
-              preparationAttachment: undefined,
               projects: undefined,
               relationships: {},
               storageUnit: {
@@ -2025,37 +2678,7 @@ describe("MaterialSampleBulkEditor", () => {
     ]);
   });
 
-  it("Disables the nested Collecting event and Acquisition Events forms in the individual sample tabs.", async () => {
-    const wrapper = mountWithAppContext(
-      <MaterialSampleBulkEditor
-        onSaved={mockOnSaved}
-        samples={TEST_SAMPLES_SAME_COL_AND_ACQ_EVENTS}
-      />,
-      testCtx
-    );
-
-    await new Promise(setImmediate);
-    wrapper.update();
-
-    // The individual sample tab has read-only Col and Acq Event forms (no input elements):
-    wrapper.find("li.sample-tab-0").simulate("click");
-    expect(
-      wrapper
-        .find(
-          ".sample-tabpanel-0 #collecting-event-section .dwcVerbatimLocality-field input"
-        )
-        .exists()
-    ).toEqual(false);
-    expect(
-      wrapper
-        .find(
-          ".sample-tabpanel-0 #acquisition-event-section .receptionRemarks-field input"
-        )
-        .exists()
-    ).toEqual(false);
-  });
-
-  it("Allows adding NEW nested Collecting and Acquisition Events in the individual sample tabs.", async () => {
+  it("Allows adding NEW nested Collecting the individual sample tabs.", async () => {
     const wrapper = mountWithAppContext(
       <MaterialSampleBulkEditor
         onSaved={mockOnSaved}
@@ -2075,25 +2698,17 @@ describe("MaterialSampleBulkEditor", () => {
       .find(".sample-tabpanel-0 .enable-collecting-event")
       .find(ReactSwitch)
       .prop<any>("onChange")(true);
-    // Enable the acquisition event section:
-    wrapper
-      .find(".sample-tabpanel-0 .enable-acquisition-event")
-      .find(ReactSwitch)
-      .prop<any>("onChange")(true);
 
     await new Promise(setImmediate);
     wrapper.update();
 
     wrapper
       .find(
-        ".sample-tabpanel-0 #collecting-event-section .dwcVerbatimLocality-field input"
+        ".sample-tabpanel-0 #" +
+          COLLECTING_EVENT_COMPONENT_NAME +
+          " .dwcVerbatimLocality-field input"
       )
       .simulate("change", { target: { value: "test locality" } });
-    wrapper
-      .find(
-        ".sample-tabpanel-0 #acquisition-event-section .receptionRemarks-field textarea"
-      )
-      .simulate("change", { target: { value: "test remarks" } });
 
     // Save the samples:
     wrapper.find("button.bulk-save-button").simulate("click");
@@ -2115,28 +2730,11 @@ describe("MaterialSampleBulkEditor", () => {
         ],
         { apiBaseUrl: "/collection-api" }
       ],
-      // Creates the new Acq Event:
-      [
-        [
-          {
-            resource: {
-              receptionRemarks: "test remarks",
-              type: "acquisition-event"
-            },
-            type: "acquisition-event"
-          }
-        ],
-        { apiBaseUrl: "/collection-api" }
-      ],
       [
         [
           // Creates the first sample with the attached events:
           {
             resource: expect.objectContaining({
-              acquisitionEvent: {
-                id: "11111",
-                type: "acquisition-event"
-              },
               collectingEvent: {
                 id: "11111",
                 type: "collecting-event"
@@ -2148,10 +2746,6 @@ describe("MaterialSampleBulkEditor", () => {
           // Creates the next 2 samples without the attached events:
           {
             resource: expect.objectContaining({
-              acquisitionEvent: {
-                id: null,
-                type: "acquisition-event"
-              },
               collectingEvent: {
                 id: null,
                 type: "collecting-event"
@@ -2162,10 +2756,6 @@ describe("MaterialSampleBulkEditor", () => {
           },
           {
             resource: expect.objectContaining({
-              acquisitionEvent: {
-                id: null,
-                type: "acquisition-event"
-              },
               collectingEvent: {
                 id: null,
                 type: "collecting-event"
@@ -2180,7 +2770,7 @@ describe("MaterialSampleBulkEditor", () => {
     ]);
   });
 
-  it("Allows selecting a Custom View to show/hide fields in the bulk and single tass.", async () => {
+  it("Allows selecting a Form Template to show/hide fields in the bulk and single tabs for material sample section.", async () => {
     const wrapper = mountWithAppContext(
       <MaterialSampleBulkEditor
         onSaved={mockOnSaved}
@@ -2192,112 +2782,117 @@ describe("MaterialSampleBulkEditor", () => {
     await new Promise(setImmediate);
     wrapper.update();
 
-    // Select a custom view:
-    wrapper
-      .find(".material-sample-custom-view-select")
-      .find(ResourceSelect)
-      .prop<any>("onChange")(TEST_CUSTOM_VIEW_WITH_MANAGED_ATTRIBUTES);
-
-    await new Promise(setImmediate);
-    wrapper.update();
-
-    // Shows the correct nav order in the bulk edit tab:
+    expect(
+      wrapper.find(".tabpanel-EDIT_ALL .barcode-field input").exists()
+    ).toEqual(true);
     expect(
       wrapper
-        .find(".tabpanel-EDIT_ALL .material-sample-nav .list-group-item")
-        .map(node => node.text())
-        .slice(0, 2)
-    ).toEqual(["Managed Attributes", "Identifiers"]);
+        .find(".tabpanel-EDIT_ALL .dwcOtherCatalogNumbers-field textarea")
+        .exists()
+    ).toEqual(true);
 
-    // Enable Collecting Event:
+    // Select a form template:
     wrapper
-      .find(".tabpanel-EDIT_ALL .enable-collecting-event")
-      .find(ReactSwitch)
-      .prop<any>("onChange")(true);
-    // Enable Organism and Determination:
-    wrapper
-      .find(".tabpanel-EDIT_ALL .enable-organisms")
-      .find(ReactSwitch)
-      .prop<any>("onChange")(true);
-    await new Promise(setImmediate);
-    wrapper.update();
-    wrapper.find(".determination-section button.add-button").simulate("click");
+      .find(".form-template-select")
+      .find(ResourceSelect)
+      .prop<any>("onChange")(formTemplate);
 
     await new Promise(setImmediate);
     wrapper.update();
 
-    // The bulk edit tab shows the managed attributes from the CustomView:
+    expect(
+      wrapper
+        .find(".form-template-select")
+        .find(ResourceSelect)
+        .prop<any>("value").id
+    ).toEqual(formTemplate.id);
+
+    // The bulk edit tab shows the barcode field from the FormTemplate:
     // For Material Sample:
     expect(
-      wrapper
-        .find(
-          ".tabpanel-EDIT_ALL #managedAttributes-section .managedAttributes_sample_attribute_1-field input"
-        )
-        .exists()
+      wrapper.find(".tabpanel-EDIT_ALL .barcode-field input").exists()
     ).toEqual(true);
-    // For Collecting Event:
     expect(
       wrapper
-        .find(
-          ".tabpanel-EDIT_ALL #collecting-event-section .managedAttributes_collecting_event_attribute_1-field input"
-        )
+        .find(".tabpanel-EDIT_ALL .dwcOtherCatalogNumbers-field input")
         .exists()
-    ).toEqual(true);
-    // For Determination:
-    expect(
-      wrapper
-        .find(
-          ".tabpanel-EDIT_ALL #managedAttributes-section .managedAttributes_sample_attribute_1-field input"
-        )
-        .exists()
-    ).toEqual(true);
+    ).toEqual(false);
 
     // Switch to the first individual sample tab:
     wrapper.find("li.sample-tab-0").simulate("click");
 
-    // Enable Collecting Event:
-    wrapper
-      .find(".sample-tabpanel-0 .enable-collecting-event")
-      .find(ReactSwitch)
-      .prop<any>("onChange")(true);
-    // Enable Organism and Determination:
-    wrapper
-      .find(".sample-tabpanel-0 .enable-organisms")
-      .find(ReactSwitch)
-      .prop<any>("onChange")(true);
     await new Promise(setImmediate);
     wrapper.update();
-    wrapper
-      .find(".sample-tabpanel-0 .determination-section button.add-button")
-      .simulate("click");
+
+    expect(
+      wrapper.find(".sample-tabpanel-0 .barcode-field input").exists()
+    ).toEqual(true);
+    expect(
+      wrapper
+        .find(".sample-tabpanel-0 .dwcOtherCatalogNumbers-field input")
+        .exists()
+    ).toEqual(false);
+  });
+
+  it("Allows selecting a Form Template to provide default values for bulk material sample edit all tab.", async () => {
+    const wrapper = mountWithAppContext(
+      <MaterialSampleBulkEditor
+        onSaved={mockOnSaved}
+        samples={TEST_NEW_SAMPLES}
+      />,
+      testCtx
+    );
 
     await new Promise(setImmediate);
     wrapper.update();
 
-    // The individual sample tab tab shows the managed attributes from the CustomView:
+    expect(
+      wrapper.find(".tabpanel-EDIT_ALL .barcode-field input").exists()
+    ).toEqual(true);
+    expect(
+      wrapper
+        .find(".tabpanel-EDIT_ALL .dwcOtherCatalogNumbers-field textarea")
+        .exists()
+    ).toEqual(true);
+
+    // Select a form template:
+    wrapper
+      .find(".form-template-select")
+      .find(ResourceSelect)
+      .prop<any>("onChange")(formTemplate);
+
+    await new Promise(setImmediate);
+    wrapper.update();
+
+    expect(
+      wrapper
+        .find(".form-template-select")
+        .find(ResourceSelect)
+        .prop<any>("value").id
+    ).toEqual(formTemplate.id);
+
+    // The bulk edit tab shows the default values from the FormTemplate:
     // For Material Sample:
     expect(
-      wrapper
-        .find(
-          ".sample-tabpanel-0 #managedAttributes-section .managedAttributes_sample_attribute_1-field input"
-        )
-        .exists()
+      wrapper.find(".tabpanel-EDIT_ALL .barcode-field input").exists()
     ).toEqual(true);
-    // For Collecting Event:
     expect(
       wrapper
-        .find(
-          ".sample-tabpanel-0 #collecting-event-section .managedAttributes_collecting_event_attribute_1-field input"
-        )
+        .find(".tabpanel-EDIT_ALL .dwcOtherCatalogNumbers-field textarea")
         .exists()
-    ).toEqual(true);
-    // For Determination:
+    ).toEqual(false);
     expect(
-      wrapper
-        .find(
-          ".sample-tabpanel-0 #managedAttributes-section .managedAttributes_sample_attribute_1-field input"
-        )
-        .exists()
-    ).toEqual(true);
+      wrapper.find(".tabpanel-EDIT_ALL .barcode-field input").prop("value")
+    ).toEqual("1111");
+
+    // Switch to the first individual sample tab:
+    wrapper.find("li.sample-tab-0").simulate("click");
+
+    await new Promise(setImmediate);
+    wrapper.update();
+
+    expect(
+      wrapper.find(".sample-tabpanel-0 .barcode-field input").prop("value")
+    ).toEqual("");
   });
 });

@@ -4,10 +4,13 @@ import { default as ReactSwitch, default as Switch } from "react-switch";
 import { MaterialSampleForm, nextSampleInitialValues } from "../../..";
 import { mountWithAppContext } from "../../../../test-util/mock-app-context";
 import {
-  AcquisitionEvent,
+  ASSOCIATIONS_COMPONENT_NAME,
   blankMaterialSample,
   CollectingEvent,
-  MaterialSample
+  COLLECTING_EVENT_COMPONENT_NAME,
+  MaterialSample,
+  ORGANISMS_COMPONENT_NAME,
+  STORAGE_COMPONENT_NAME
 } from "../../../../types/collection-api";
 
 // Mock out the dynamic component, which should only be rendered in the browser
@@ -27,17 +30,6 @@ function testCollectionEvent(): Partial<CollectingEvent> {
   };
 }
 
-function testAcquisitionEvent(): Partial<AcquisitionEvent> {
-  return {
-    id: "1",
-    type: "acquisition-event",
-    group: "test group",
-    createdBy: "poffm",
-    createdOn: "2021-11-15",
-    receptionRemarks: "test reception remarks"
-  };
-}
-
 function testMaterialSample(): InputResource<MaterialSample> {
   return {
     id: "1",
@@ -48,28 +40,18 @@ function testMaterialSample(): InputResource<MaterialSample> {
       id: "1",
       type: "collecting-event"
     },
-    acquisitionEvent: {
-      id: "1",
-      type: "acquisition-event"
-    },
     attachment: [{ id: "attach-1", type: "metadata" }],
     ...blankMaterialSample()
   };
 }
 
-const mockGet = jest.fn<any, any>(async path => {
+const mockGet = jest.fn<any, any>(async (path) => {
   switch (path) {
     case "collection-api/collecting-event":
       return { data: [testCollectionEvent()] };
-    case "collection-api/collecting-event/1?include=collectors,attachment,collectionMethod":
+    case "collection-api/collecting-event/1?include=collectors,attachment,collectionMethod,protocol":
       // Populate the linker table:
       return { data: testCollectionEvent() };
-    case "collection-api/acquisition-event/1":
-      // Populate the linker table:
-      return { data: testAcquisitionEvent() };
-    case "collection-api/acquisition-event":
-      // Populate the linker table:
-      return { data: [testAcquisitionEvent()] };
     case "collection-api/material-sample/1":
       return { data: testMaterialSample() };
     case "collection-api/material-sample":
@@ -96,15 +78,15 @@ const mockGet = jest.fn<any, any>(async path => {
     case "collection-api/storage-unit/76575":
     case "collection-api/project":
     case "collection-api/vocabulary/associationType":
-    case "collection-api/custom-view":
+    case "collection-api/form-template":
     case "collection-api/vocabulary/materialSampleType":
     case "collection-api/organism":
       return { data: [], meta: { totalResourceCount: 0 } };
   }
 });
 
-const mockSave = jest.fn<any, any>(async saves => {
-  return saves.map(save => {
+const mockSave = jest.fn<any, any>(async (saves) => {
+  return saves.map((save) => {
     // Test duplicate name error:
     if (
       save.type === "material-sample" &&
@@ -123,7 +105,7 @@ const mockSave = jest.fn<any, any>(async saves => {
 });
 
 const mockBulkGet = jest.fn<any, any>(async (paths: string[]) =>
-  paths.map(path => {
+  paths.map((path) => {
     switch (path) {
       case "managed-attribute/MATERIAL_SAMPLE.attribute_1":
         return { id: "1", key: "attribute_1", name: "Attribute 1" };
@@ -174,6 +156,11 @@ describe("Material Sample Edit Page", () => {
     wrapper.find(".enable-catalogue-info").find(Switch).prop<any>("onChange")(
       true
     );
+    // Wait for the page to load.
+    await new Promise(setImmediate);
+    wrapper.update();
+
+    expect(wrapper.find(".spinner-border").exists()).toEqual(false);
 
     wrapper
       .find(".materialSampleName-field input")
@@ -193,7 +180,7 @@ describe("Material Sample Edit Page", () => {
         [
           {
             resource: {
-              dwcOtherRecordNumbers: null,
+              otherRecordNumbers: null,
               dwcVerbatimCoordinateSystem: null,
               dwcVerbatimSRS: "WGS84 (EPSG:4326)",
               geoReferenceAssertions: [
@@ -220,10 +207,6 @@ describe("Material Sample Edit Page", () => {
         [
           {
             resource: {
-              acquisitionEvent: {
-                id: null,
-                type: "acquisition-event"
-              },
               associations: [],
               collectingEvent: {
                 id: "11111111-1111-1111-1111-111111111111",
@@ -240,12 +223,13 @@ describe("Material Sample Edit Page", () => {
               organism: undefined,
               organismsIndividualEntry: undefined,
               organismsQuantity: undefined,
-              preparationAttachment: undefined,
               projects: undefined,
               isRestricted: false,
               restrictionFieldsExtension: null,
               restrictionRemarks: null,
-              scheduledAction: undefined
+              scheduledAction: undefined,
+              preparationMethod: undefined,
+              collection: undefined
             },
             type: "material-sample"
           }
@@ -297,10 +281,6 @@ describe("Material Sample Edit Page", () => {
           // New material-sample:
           {
             resource: {
-              acquisitionEvent: {
-                id: null,
-                type: "acquisition-event"
-              },
               associations: [],
               collectingEvent: {
                 id: "1",
@@ -317,7 +297,7 @@ describe("Material Sample Edit Page", () => {
               organism: undefined,
               organismsIndividualEntry: undefined,
               organismsQuantity: undefined,
-              preparationAttachment: undefined,
+              preparationMethod: undefined,
               projects: undefined,
               isRestricted: false,
               restrictionFieldsExtension: null,
@@ -399,7 +379,9 @@ describe("Material Sample Edit Page", () => {
     ).toEqual("2021-04-13");
 
     wrapper
-      .find("#collecting-event-section button.detach-resource-button")
+      .find(
+        "#" + COLLECTING_EVENT_COMPONENT_NAME + " button.detach-resource-button"
+      )
       .simulate("click");
 
     await new Promise(setImmediate);
@@ -426,7 +408,7 @@ describe("Material Sample Edit Page", () => {
         [
           {
             resource: {
-              dwcOtherRecordNumbers: null,
+              otherRecordNumbers: null,
               dwcVerbatimCoordinateSystem: null,
               dwcVerbatimSRS: "WGS84 (EPSG:4326)",
               geoReferenceAssertions: [
@@ -521,7 +503,7 @@ describe("Material Sample Edit Page", () => {
     expect(
       wrapper.find(".enable-storage").find(ReactSwitch).prop("checked")
     ).toEqual(true);
-    expect(wrapper.find("#storage-section").exists()).toEqual(true);
+    expect(wrapper.find("#" + STORAGE_COMPONENT_NAME).exists()).toEqual(true);
   });
 
   it("Renders an existing Material Sample with the Organisms section enabled.", async () => {
@@ -552,7 +534,7 @@ describe("Material Sample Edit Page", () => {
     expect(
       wrapper.find(".enable-organisms").find(ReactSwitch).prop("checked")
     ).toEqual(true);
-    expect(wrapper.find(".organisms-section").exists()).toEqual(true);
+    expect(wrapper.find("." + ORGANISMS_COMPONENT_NAME).exists()).toEqual(true);
   });
 
   it("Renders an existing Material Sample with the Association section enabled.", async () => {
@@ -578,7 +560,9 @@ describe("Material Sample Edit Page", () => {
     expect(
       wrapper.find(".enable-associations").find(ReactSwitch).prop("checked")
     ).toEqual(true);
-    expect(wrapper.find("#associations-section").exists()).toEqual(true);
+    expect(wrapper.find("#" + ASSOCIATIONS_COMPONENT_NAME).exists()).toEqual(
+      true
+    );
   });
 
   it("Save association with uuid mapped correctly for saving.", async () => {
@@ -602,7 +586,9 @@ describe("Material Sample Edit Page", () => {
     expect(
       wrapper.find(".enable-associations").find(ReactSwitch).prop("checked")
     ).toEqual(true);
-    expect(wrapper.find("#associations-section").exists()).toEqual(true);
+    expect(wrapper.find("#" + ASSOCIATIONS_COMPONENT_NAME).exists()).toEqual(
+      true
+    );
 
     wrapper.find("form").simulate("submit");
 
@@ -618,7 +604,6 @@ describe("Material Sample Edit Page", () => {
               id: "333",
               relationships: {},
               attachment: undefined,
-              preparationAttachment: undefined,
               projects: undefined,
               type: "material-sample"
             },
@@ -639,7 +624,6 @@ describe("Material Sample Edit Page", () => {
           type: "material-sample",
           id: "333",
           materialSampleName: "test-ms",
-          preparationAttachment: [], // This empty array should be treated as a blank value.
           attachment: [],
           organism: []
         }}
@@ -654,12 +638,6 @@ describe("Material Sample Edit Page", () => {
     // Data components are disabled:
     expect(
       wrapper.find(".enable-collecting-event").find(ReactSwitch).prop("checked")
-    ).toEqual(false);
-    expect(
-      wrapper
-        .find(".enable-acquisition-event")
-        .find(ReactSwitch)
-        .prop("checked")
     ).toEqual(false);
     expect(
       wrapper.find(".enable-catalogue-info").find(ReactSwitch).prop("checked")
@@ -897,187 +875,6 @@ describe("Material Sample Edit Page", () => {
     });
   });
 
-  it("Creates a material sample with a new Acquisition Event", async () => {
-    const wrapper = mountWithAppContext(
-      <MaterialSampleForm onSaved={mockOnSaved} />,
-      testCtx
-    );
-
-    await new Promise(setImmediate);
-    wrapper.update();
-
-    // Enable Collecting Event and catalogue info form sections:
-    wrapper
-      .find(".enable-acquisition-event")
-      .find(Switch)
-      .prop<any>("onChange")(true);
-
-    await new Promise(setImmediate);
-    wrapper.update();
-
-    wrapper
-      .find(".receptionRemarks-field textarea")
-      .simulate("change", { target: { value: "new acq event remarks" } });
-
-    wrapper.find("form").simulate("submit");
-
-    await new Promise(setImmediate);
-    wrapper.update();
-
-    // Saves the Acq Event and the Material Sample:
-    expect(mockSave.mock.calls).toEqual([
-      [
-        [
-          {
-            resource: {
-              receptionRemarks: "new acq event remarks",
-              type: "acquisition-event"
-            },
-            type: "acquisition-event"
-          }
-        ],
-        {
-          apiBaseUrl: "/collection-api"
-        }
-      ],
-      [
-        [
-          {
-            resource: expect.objectContaining({
-              acquisitionEvent: {
-                id: "11111111-1111-1111-1111-111111111111",
-                type: "acquisition-event"
-              }
-            }),
-            type: "material-sample"
-          }
-        ],
-        { apiBaseUrl: "/collection-api" }
-      ]
-    ]);
-  });
-
-  it("Created a material sample linked to an existing Acquisition event", async () => {
-    const wrapper = mountWithAppContext(
-      <MaterialSampleForm onSaved={mockOnSaved} />,
-      testCtx
-    );
-
-    await new Promise(setImmediate);
-    wrapper.update();
-
-    // Enable Collecting Event and catalogue info form sections:
-    wrapper
-      .find(".enable-acquisition-event")
-      .find(Switch)
-      .prop<any>("onChange")(true);
-
-    await new Promise(setImmediate);
-    wrapper.update();
-
-    wrapper.find("button.acquisition-event-link-button").simulate("click");
-
-    await new Promise(setImmediate);
-    wrapper.update();
-
-    wrapper.find("form").simulate("submit");
-
-    await new Promise(setImmediate);
-    wrapper.update();
-
-    // Saves the Material Sample:
-    expect(mockSave.mock.calls).toEqual([
-      [
-        [
-          {
-            resource: expect.objectContaining({
-              acquisitionEvent: {
-                id: "1",
-                type: "acquisition-event"
-              }
-            }),
-            type: "material-sample"
-          }
-        ],
-        {
-          apiBaseUrl: "/collection-api"
-        }
-      ]
-    ]);
-  });
-
-  it("Lets you remove the attached Acquisition Event", async () => {
-    const wrapper = mountWithAppContext(
-      <MaterialSampleForm
-        materialSample={testMaterialSample()}
-        onSaved={mockOnSaved}
-      />,
-      testCtx
-    );
-
-    await new Promise(setImmediate);
-    wrapper.update();
-
-    // Existing AcquisitionEvent should show up:
-    expect(
-      wrapper.find(".receptionRemarks-field textarea").prop("value")
-    ).toEqual("test reception remarks");
-
-    wrapper
-      .find("#acquisition-event-section button.detach-resource-button")
-      .simulate("click");
-
-    await new Promise(setImmediate);
-    wrapper.update();
-
-    // Existing AcquisitionEvent should be gone:
-    expect(
-      wrapper.find(".receptionRemarks-field textarea").prop("value")
-    ).toEqual("");
-
-    // Set the new Acquisition Event's receptionRemarks:
-    wrapper
-      .find(".receptionRemarks-field textarea")
-      .simulate("change", { target: { value: "new remarks value" } });
-
-    wrapper.find("form").simulate("submit");
-
-    await new Promise(setImmediate);
-    wrapper.update();
-
-    expect(mockSave.mock.calls).toEqual([
-      [
-        [
-          {
-            resource: {
-              receptionRemarks: "new remarks value",
-              type: "acquisition-event"
-            },
-            type: "acquisition-event"
-          }
-        ],
-        { apiBaseUrl: "/collection-api" }
-      ],
-      [
-        [
-          {
-            resource: {
-              id: "1",
-              type: "material-sample",
-              acquisitionEvent: {
-                id: "11111111-1111-1111-1111-111111111111",
-                type: "acquisition-event"
-              },
-              relationships: {}
-            },
-            type: "material-sample"
-          }
-        ],
-        { apiBaseUrl: "/collection-api" }
-      ]
-    ]);
-  });
-
   it("Submits a new Material Sample with a duplicate sample name: Shows an error", async () => {
     const wrapper = mountWithAppContext(
       <MaterialSampleForm onSaved={mockOnSaved} />,
@@ -1288,7 +1085,7 @@ describe("Material Sample Edit Page", () => {
     await new Promise(setImmediate);
     wrapper.update();
 
-    expect(wrapper.find(".organisms-section").exists()).toEqual(true);
+    expect(wrapper.find("." + ORGANISMS_COMPONENT_NAME).exists()).toEqual(true);
 
     // Expand all organism sections:
     wrapper.find("button.expand-organism.not-expanded").at(0).simulate("click");
@@ -1384,7 +1181,7 @@ describe("Material Sample Edit Page", () => {
     await new Promise(setImmediate);
     wrapper.update();
 
-    expect(wrapper.find(".organisms-section").exists()).toEqual(true);
+    expect(wrapper.find("." + ORGANISMS_COMPONENT_NAME).exists()).toEqual(true);
 
     // Initially has 2 organisms:
     expect(
@@ -1733,7 +1530,7 @@ describe("Material Sample Edit Page", () => {
 
     // Renders the initial lifestage values:
     expect(
-      wrapper.find(".rt-td.lifeStage-cell").map(cell => cell.text())
+      wrapper.find(".rt-td.lifeStage-cell").map((cell) => cell.text())
     ).toEqual(["lifestage 1", "lifestage 2", "lifestage 3"]);
 
     // Expand the 3rd organism:
@@ -1866,7 +1663,9 @@ describe("Material Sample Edit Page", () => {
       .find(".organismsIndividualEntry-field")
       .find(Switch)
       .prop<any>("onChange")(false);
-
+    wrapper.find(".useTargetOrganism-field").find(Switch).prop<any>("onChange")(
+      false
+    );
     wrapper.find("form").simulate("submit");
 
     await new Promise(setImmediate);
@@ -1874,7 +1673,7 @@ describe("Material Sample Edit Page", () => {
 
     // Saves the Material Sample with the 3 SAME organisms:
     expect(mockSave.mock.calls).toEqual([
-      // IsTarget should be reverted to false.
+      // IsTarget should be reverted to null.
       // Organism 1's values with "lifestage 1" are copied to the other organisms:
       [
         [
@@ -1884,7 +1683,7 @@ describe("Material Sample Edit Page", () => {
               id: "organism-1",
               lifeStage: "lifestage 1",
               type: "organism",
-              isTarget: false
+              isTarget: null
             },
             type: "organism"
           },
@@ -1894,7 +1693,7 @@ describe("Material Sample Edit Page", () => {
               id: "organism-2",
               lifeStage: "lifestage 1",
               type: "organism",
-              isTarget: false
+              isTarget: null
             },
             type: "organism"
           },
@@ -1904,7 +1703,7 @@ describe("Material Sample Edit Page", () => {
               id: "organism-3",
               lifeStage: "lifestage 1",
               type: "organism",
-              isTarget: false
+              isTarget: null
             },
             type: "organism"
           }
@@ -2306,12 +2105,16 @@ describe("Material Sample Edit Page", () => {
     // Attributes 2 and 3 are visible and empty:
     expect(
       wrapper
-        .find("#collecting-event-section .attribute_2-field input")
+        .find(
+          "#" + COLLECTING_EVENT_COMPONENT_NAME + " .attribute_2-field input"
+        )
         .prop("value")
     ).toEqual("");
     expect(
       wrapper
-        .find("#collecting-event-section .attribute_3-field input")
+        .find(
+          "#" + COLLECTING_EVENT_COMPONENT_NAME + " .attribute_3-field input"
+        )
         .prop("value")
     ).toEqual("");
   });
@@ -2361,38 +2164,5 @@ describe("Material Sample Edit Page", () => {
         )
         .prop("value")
     ).toEqual("");
-  });
-
-  it("Lets you set a Custom Navigation section order via prop.", async () => {
-    const wrapper = mountWithAppContext(
-      <MaterialSampleForm
-        materialSample={{
-          type: "material-sample",
-          id: "333",
-          group: "test-group",
-          materialSampleName: "test-ms"
-        }}
-        // Custom navOrder:
-        navOrder={[
-          "managedAttributes-section",
-          "material-sample-info-section",
-          "identifiers-section"
-        ]}
-        onChangeNavOrder={() => undefined}
-        onSaved={mockOnSaved}
-      />,
-      testCtx
-    );
-
-    await new Promise(setImmediate);
-    wrapper.update();
-
-    // Check the first 3 sections for the sections defined in the prop:
-    expect(
-      wrapper
-        .find(".material-sample-nav .list-group-item")
-        .map(node => node.text())
-        .slice(0, 3)
-    ).toEqual(["Managed Attributes", "Material Sample Info", "Identifiers"]);
   });
 });

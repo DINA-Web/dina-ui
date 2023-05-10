@@ -9,15 +9,15 @@ import {
   TextField
 } from "common-ui";
 import { GroupSelectField } from "../../../../../dina-ui/components/group-select/GroupSelectField";
+import { Protocol } from "../../../../types/collection-api";
 import {
   Chain,
   ChainStepTemplate,
   ContainerType,
   IndexSet,
   LibraryPrepBatch,
-  PcrProfile,
+  ThermocyclerProfile,
   Product,
-  Protocol,
   StepResource
 } from "../../../../types/seqdb-api";
 
@@ -96,35 +96,35 @@ export function LibraryPrepBatchForm({
           name="product"
           filter={filterBy(["name"])}
           model="seqdb-api/product"
-          optionLabel={product => product.name}
+          optionLabel={(product) => product.name}
         />
         <ResourceSelectField<Protocol>
           className="col-md-2"
           name="protocol"
           filter={filterBy(["name"])}
-          model="seqdb-api/protocol"
-          optionLabel={protocol => protocol.name}
+          model="collection-api/protocol"
+          optionLabel={(protocol) => protocol.name}
         />
         <ResourceSelectField<ContainerType>
           className="col-md-2"
           name="containerType"
           filter={filterBy(["name"])}
           model="seqdb-api/container-type"
-          optionLabel={ct => ct.name}
+          optionLabel={(ct) => ct.name}
         />
-        <ResourceSelectField<PcrProfile>
+        <ResourceSelectField<ThermocyclerProfile>
           className="col-md-2"
           name="thermocyclerProfile"
           filter={filterBy(["name"])}
           model="seqdb-api/thermocycler-profile"
-          optionLabel={profile => profile.name}
+          optionLabel={(profile) => profile.name}
         />
         <ResourceSelectField<IndexSet>
           className="col-md-2"
           name="indexSet"
           filter={filterBy(["name"])}
           model="seqdb-api/index-set"
-          optionLabel={set => set.name}
+          optionLabel={(set) => set.name}
         />
       </div>
       <div className="row">

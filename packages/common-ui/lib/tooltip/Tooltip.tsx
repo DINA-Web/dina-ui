@@ -2,12 +2,19 @@ import RcTooltip from "rc-tooltip";
 import { ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
-interface TooltipProps {
+export interface TooltipProps {
   /** The ID of the message to show in the tooltip. */
   id?: string;
 
   /** Intl message arguments */
   intlValues?: Record<string, any>;
+
+  /**
+   * By-pass localization to provide direct text. This is helpful for user provided content.
+   *
+   * ID should be used for hard-coded messages.
+   */
+  directText?: string;
 
   /**
    * The element shown that you hover on to see the tooltip.
@@ -30,26 +37,36 @@ interface TooltipProps {
   // add margin to tooltip span if true
   disableSpanMargin?: boolean;
 
+  /** Tooltip placement override, top is the default. */
+  placement?: "top" | "bottom" | "left" | "right";
+
   setVisible?: React.Dispatch<React.SetStateAction<boolean>>;
   visible?: boolean;
 }
 
+export type tooltipPlacements = "top" | "bottom" | "left" | "right";
+
 export function Tooltip({
   id,
+  directText,
   intlValues,
   visibleElement,
   link,
   linkText,
   image,
   altImage,
-  disableSpanMargin
+  disableSpanMargin,
+  placement = "top"
 }: TooltipProps) {
   // Setup the internationalization functions.
   const { messages, formatMessage } = useIntl();
 
   // Determine if a tooltip message needs to be displayed.
-  const tooltipMessage =
-    id != null ? <FormattedMessage id={id} values={intlValues} /> : null;
+  const tooltipMessage = directText ? (
+    directText
+  ) : id ? (
+    <FormattedMessage id={id} values={intlValues} />
+  ) : null;
 
   // Determine if an image should be displayed.
   const tooltipImage =
@@ -96,8 +113,9 @@ export function Tooltip({
             {tooltipLink}
           </div>
         }
-        placement="top"
+        placement={placement}
         trigger={["focus", "hover"]}
+        zIndex={3001}
       >
         <span>
           {visibleElement ? (

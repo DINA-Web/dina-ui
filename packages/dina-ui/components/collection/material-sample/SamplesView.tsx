@@ -9,11 +9,9 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 import ReactTable from "react-table";
-import {
-  DinaMessage,
-  useDinaIntl
-} from "../../../../dina-ui/intl/dina-ui-intl";
+import { useDinaIntl } from "../../../../dina-ui/intl/dina-ui-intl";
 import { MaterialSample } from "../../../../dina-ui/types/collection-api";
+import { SplitMaterialSampleDropdownButton } from "./SplitMaterialSampleDropdownButton";
 
 export interface SamplesViewProps {
   samples?: Partial<MaterialSample>[];
@@ -38,7 +36,7 @@ export function SamplesView({ samples, fieldSetId }: SamplesViewProps) {
     {
       accessor: "materialSampleType",
       sortable: false,
-      Header: formatMessage("field_materialSampleType.name")
+      Header: formatMessage("field_materialSampleType")
     },
     {
       ...dateCell("createdOn"),
@@ -50,7 +48,7 @@ export function SamplesView({ samples, fieldSetId }: SamplesViewProps) {
       Header: formatMessage("tags")
     },
     {
-      Cell: ({ original: { id } }) => (
+      Cell: ({ original: { id, materialSampleName, materialSampleType } }) => (
         <div className="d-flex">
           <EditButton
             className="mx-2"
@@ -58,13 +56,11 @@ export function SamplesView({ samples, fieldSetId }: SamplesViewProps) {
             entityLink="collection/material-sample"
             style={{ width: "5rem" }}
           />
-          <Link
-            href={`/collection/material-sample/bulk-create?splitFromId=${id}`}
-          >
-            <a className="btn btn-info mx-2">
-              <DinaMessage id="splitButton" />
-            </a>
-          </Link>
+          <SplitMaterialSampleDropdownButton
+            ids={[id]}
+            disabled={!materialSampleName}
+            materialSampleType={materialSampleType}
+          />
           <DeleteButton
             id={id as string}
             options={{ apiBaseUrl: "/collection-api" }}
@@ -97,7 +93,7 @@ export function SamplesView({ samples, fieldSetId }: SamplesViewProps) {
     <FieldSet legend={fieldSetId}>
       <ReactTable
         columns={CHILD_SAMPLES_COLUMNS}
-        className="-striped"
+        className="-striped react-table-overflow"
         data={samples}
         defaultSorted={sortingRules}
         minRows={1}

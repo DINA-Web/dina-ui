@@ -18,7 +18,7 @@ export function StorageFilter({ onChange }: StorageFilterProps) {
   const [storageTypeFilter, setStorageTypeFilter] =
     useState<PersistedResource<StorageUnitType>>();
   const [createdByMeFilter, setCreatedByMeFilter] = useState(false);
-  const { username } = useAccount();
+  const { username, groupNames } = useAccount();
 
   function doSearch() {
     onChange({
@@ -61,6 +61,18 @@ export function StorageFilter({ onChange }: StorageFilterProps) {
                 value: storageTypeFilter.id
               }
             ]
+          : []),
+        ...(groupNames
+          ? groupNames.map((group, index) => {
+              return {
+                id: -index,
+                type: "FILTER_ROW" as const,
+                attribute: "group",
+                predicate: "IS" as const,
+                searchType: "EXACT_MATCH" as const,
+                value: group
+              };
+            })
           : [])
       ]
     });
@@ -87,7 +99,7 @@ export function StorageFilter({ onChange }: StorageFilterProps) {
         <div className="d-flex align-items-center gap-2">
           <input
             type="checkbox"
-            onChange={e => setCreatedByMeFilter(e.target.checked)}
+            onChange={(e) => setCreatedByMeFilter(e.target.checked)}
             checked={createdByMeFilter}
             style={{
               height: "20px",
@@ -103,36 +115,37 @@ export function StorageFilter({ onChange }: StorageFilterProps) {
         <div className="col-sm-6">
           <label className="w-100">
             <strong>
-              <DinaMessage id="storageUnitType" />
+              <DinaMessage id="name" />
             </strong>
-            <ResourceSelect<StorageUnitType>
-              model="collection-api/storage-unit-type"
-              optionLabel={it => it.name}
-              filter={filterBy(["name"])}
-              onChange={setStorageTypeFilter as any}
-              value={storageTypeFilter}
+            <input
+              className="storage-tree-search form-control"
+              type="text"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              // Pressing enter should set the filter, not submit the form:
+              onKeyDown={(e) => {
+                if (e.keyCode === 13) {
+                  e.preventDefault();
+                  doSearch();
+                }
+              }}
+              autoComplete="none"
             />
           </label>
         </div>
         <div className="col-sm-6">
           <label className="w-100">
             <strong>
-              <DinaMessage id="name" />
+              <DinaMessage id="storageUnitType" />
             </strong>
             <div className="input-group col-sm-6">
-              <input
-                className="storage-tree-search form-control"
-                type="text"
-                value={searchText}
-                onChange={e => setSearchText(e.target.value)}
-                // Pressing enter should set the filter, not submit the form:
-                onKeyDown={e => {
-                  if (e.keyCode === 13) {
-                    e.preventDefault();
-                    doSearch();
-                  }
-                }}
-                autoComplete="none"
+              <ResourceSelect<StorageUnitType>
+                model="collection-api/storage-unit-type"
+                optionLabel={(it) => it.name}
+                filter={filterBy(["name"])}
+                onChange={setStorageTypeFilter as any}
+                value={storageTypeFilter}
+                styles={{ container: () => ({ flex: "auto" }) }}
               />
               <button
                 className="storage-tree-search btn btn-primary"

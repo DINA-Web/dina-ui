@@ -5,10 +5,10 @@ import {
   DateField,
   DinaForm,
   DinaFormOnSubmit,
-  DinaFormSection,
   FieldSet,
   FieldSpy,
   NumberField,
+  QueryPage,
   RadioButtonsField,
   StringArrayField,
   SubmitButton,
@@ -16,7 +16,6 @@ import {
   ToggleField,
   useApiClient,
   useDinaFormContext,
-  useFieldLabels,
   useQuery,
   withResponse
 } from "common-ui";
@@ -32,11 +31,16 @@ import {
   Nav,
   PersonSelectField
 } from "../../../components";
-import { ManagedAttributesEditor } from "../../../components/object-store/managed-attributes/ManagedAttributesEditor";
+import { ManagedAttributesEditor } from "../../../components/managed-attributes/ManagedAttributesEditor";
 import { DinaMessage, useDinaIntl } from "../../../intl/dina-ui-intl";
 import { AgentRole, Transaction } from "../../../types/loan-transaction-api";
 import ReactTable, { Column } from "react-table";
 import Link from "next/link";
+import { SeqdbMessage } from "../../../intl/seqdb-intl";
+import { MaterialSample } from "../../../../dina-ui/types/collection-api";
+import { useState, Dispatch, SetStateAction, useEffect } from "react";
+import { pick, compact } from "lodash";
+import { ELASTIC_SEARCH_COLUMN } from "../../../components/collection/material-sample/MaterialSampleRelationshipColumns";
 
 export interface TransactionFormProps {
   fetchedTransaction?: Transaction;
@@ -47,7 +51,7 @@ export function useTransactionQuery(id?: string, showPermissions?: boolean) {
   return useQuery<Transaction>(
     {
       path: `loan-transaction-api/transaction/${id}`,
-      include: "attachment",
+      include: "attachment,materialSamples",
       ...(showPermissions && { header: { "include-dina-permission": "true" } })
     },
     {
@@ -81,7 +85,6 @@ export default function TransactionEditPage() {
   const title = id ? "editTransactionTitle" : "addTransactionTitle";
 
   const query = useTransactionQuery(id);
-
   return (
     <div>
       <Head title={formatMessage(title)} />
@@ -121,6 +124,10 @@ export function TransactionForm({
         materialToBeReturned: false,
         agentRoles: []
       };
+  // The selected resources to be used for the QueryPage.
+  const [selectedResources, setSelectedResources] = useState<MaterialSample[]>(
+    []
+  );
 
   const onSubmit: DinaFormOnSubmit<InputResource<Transaction>> = async ({
     submittedValues
@@ -129,22 +136,30 @@ export function TransactionForm({
       relationships: any;
     } = {
       ...submittedValues,
-
       // Convert the attachments to a 'relationships' array so it works with JSONAPI:
       attachment: undefined,
+      materialSamples: undefined,
       relationships: {
         ...(submittedValues.attachment && {
           attachment: {
-            data: submittedValues.attachment.map(it => ({
+            data: submittedValues.attachment.map((it) => ({
               id: it.id,
               type: it.type
             }))
           }
-        })
+        }),
+        ...{
+          materialSamples: {
+            data: selectedResources.map((it) => ({
+              id: it.id,
+              type: "material-sample"
+            }))
+          }
+        }
       },
 
       // Convert the Agent objects to UUIDs for submission to the back-end:
-      agentRoles: submittedValues.agentRoles?.map(agentRole => ({
+      agentRoles: submittedValues.agentRoles?.map((agentRole) => ({
         ...agentRole,
         agent:
           typeof agentRole.agent === "object"
@@ -181,15 +196,69 @@ export function TransactionForm({
       onSubmit={onSubmit}
     >
       {buttonBar}
-      <TransactionFormLayout />
+      <TransactionFormLayout
+        selectedResources={selectedResources}
+        setSelectedResources={setSelectedResources}
+      />
       {buttonBar}
     </DinaForm>
   );
 }
 
-export function TransactionFormLayout() {
+export interface TransactionFormLayoutProps {
+  selectedResources?: MaterialSample[];
+  setSelectedResources?: Dispatch<SetStateAction<MaterialSample[]>>;
+}
+
+export function TransactionFormLayout({
+  selectedResources,
+  setSelectedResources
+}: TransactionFormLayoutProps) {
   const { formatMessage } = useDinaIntl();
   const { readOnly, initialValues } = useDinaFormContext();
+  const { bulkGet } = useApiClient();
+  const [selectedResourcesView, setSelectedResourcesView] = useState<
+    MaterialSample[]
+  >([]);
+
+  /**
+   * Taking all of the material sample UUIDs, retrieve the material samples using a bulk get
+   * operation.
+   *
+   * @param sampleIds array of UUIDs.
+   */
+  async function fetchSamples(sampleIds: string[]) {
+    await bulkGet<MaterialSample>(
+      sampleIds.map((id) => `/material-sample/${id}?include=organism`),
+      { apiBaseUrl: "/collection-api" }
+    ).then((response) => {
+      const materialSamplesTransformed = compact(response).map((resource) => ({
+        data: {
+          attributes: pick(resource, ["materialSampleName"])
+        },
+        id: resource.id,
+        type: resource.type,
+        included: {
+          organism: resource.organism
+        }
+      }));
+      if (setSelectedResources !== undefined) {
+        setSelectedResources(materialSamplesTransformed ?? []);
+      }
+      setSelectedResourcesView(materialSamplesTransformed ?? []);
+    });
+  }
+
+  useEffect(() => {
+    if (initialValues.materialSamples?.length > 0) {
+      const materialSampleIds = initialValues.materialSamples.map(
+        (materialSample) => {
+          return materialSample.id;
+        }
+      );
+      fetchSamples(materialSampleIds);
+    }
+  }, []);
 
   return (
     <div>
@@ -204,7 +273,7 @@ export function TransactionFormLayout() {
         {readOnly ? (
           <div className="d-flex gap-2 mb-3">
             <FieldSpy<string> fieldName="materialDirection">
-              {direction => (
+              {(direction) => (
                 <h2 className="my-0">
                   <div className="badge bg-primary">
                     {direction === "IN" ? (
@@ -219,7 +288,7 @@ export function TransactionFormLayout() {
               )}
             </FieldSpy>
             <FieldSpy<boolean> fieldName="materialToBeReturned">
-              {toBeReturned =>
+              {(toBeReturned) =>
                 toBeReturned && (
                   <h2 className="my-0">
                     <span className="badge bg-primary">
@@ -251,15 +320,19 @@ export function TransactionFormLayout() {
           <div className="col-md-6">
             <AutoSuggestTextField<Transaction>
               name="transactionType"
-              query={(search, ctx) => ({
-                path: "loan-transaction-api/transaction",
-                filter: {
-                  ...(ctx.values.group && { group: { EQ: ctx.values.group } }),
-                  rsql: `transactionType==${search}*`
-                }
-              })}
-              alwaysShowSuggestions={true}
-              suggestion={transaction => transaction?.transactionType}
+              jsonApiBackend={{
+                query: (search, ctx) => ({
+                  path: "loan-transaction-api/transaction",
+                  filter: {
+                    ...(ctx.values.group && {
+                      group: { EQ: ctx.values.group }
+                    }),
+                    rsql: `transactionType==${search}*`
+                  }
+                }),
+                option: (transaction) => transaction?.transactionType
+              }}
+              blankSearchBackend={"json-api"}
             />
             <TextField name="transactionNumber" />
           </div>
@@ -271,28 +344,32 @@ export function TransactionFormLayout() {
           <AutoSuggestTextField<Transaction>
             className="col-sm-6"
             name="status"
-            query={(search, ctx) => ({
-              path: "loan-transaction-api/transaction",
-              filter: {
-                ...(ctx.values.group && { group: { EQ: ctx.values.group } }),
-                rsql: `status==${search}*`
-              }
-            })}
-            alwaysShowSuggestions={true}
-            suggestion={transaction => transaction?.status}
+            jsonApiBackend={{
+              query: (search, ctx) => ({
+                path: "loan-transaction-api/transaction",
+                filter: {
+                  ...(ctx.values.group && { group: { EQ: ctx.values.group } }),
+                  rsql: `status==${search}*`
+                }
+              }),
+              option: (transaction) => transaction?.status
+            }}
+            blankSearchBackend={"json-api"}
           />
           <AutoSuggestTextField<Transaction>
             className="col-sm-6"
             name="purpose"
-            query={(search, ctx) => ({
-              path: "loan-transaction-api/transaction",
-              filter: {
-                ...(ctx.values.group && { group: { EQ: ctx.values.group } }),
-                rsql: `purpose==${search}*`
-              }
-            })}
-            alwaysShowSuggestions={true}
-            suggestion={transaction => transaction?.purpose}
+            jsonApiBackend={{
+              query: (search, ctx) => ({
+                path: "loan-transaction-api/transaction",
+                filter: {
+                  ...(ctx.values.group && { group: { EQ: ctx.values.group } }),
+                  rsql: `purpose==${search}*`
+                }
+              }),
+              option: (transaction) => transaction?.purpose
+            }}
+            blankSearchBackend={"json-api"}
           />
         </div>
         <div className="row">
@@ -306,19 +383,40 @@ export function TransactionFormLayout() {
           multiLines={true}
         />
       </FieldSet>
+      <FieldSet legend={<DinaMessage id="materialSampleListTitle" />}>
+        {readOnly && (
+          <>
+            <strong>
+              <SeqdbMessage id="selectedSamplesTitle" />
+            </strong>
+          </>
+        )}
+        <div className="mb-3">
+          <QueryPage<MaterialSample>
+            indexName={"dina_material_sample_index"}
+            columns={ELASTIC_SEARCH_COLUMN}
+            selectionMode={!readOnly}
+            selectionResources={
+              readOnly ? selectedResourcesView : selectedResources
+            }
+            setSelectionResources={setSelectedResources}
+            viewMode={readOnly}
+          />
+        </div>
+      </FieldSet>
       {readOnly ? (
         <FieldSpy<AgentRole[]> fieldName="agentRoles">
-          {agentRoles => {
+          {(agentRoles) => {
             const tableColumns: Column<AgentRole>[] = [
               {
                 id: "roles",
-                accessor: it => it.roles?.join(", "),
+                accessor: (it) => it.roles?.join(", "),
                 Header: <strong>{formatMessage("agentRole")}</strong>,
                 width: 300
               },
               {
                 id: "agentName",
-                accessor: it =>
+                accessor: (it) =>
                   typeof it.agent === "object" && it?.agent?.id ? (
                     <Link href={`/person/view?id=${it.agent.id}`}>
                       <a>
@@ -464,7 +562,7 @@ function ShipmentDetailsFieldSet({ fieldName }: ShipmentDetailsFieldSetProps) {
             {...fieldProps("value")}
             className="col-sm-6"
             label={<DinaMessage id="valueCad" />}
-            readOnlyRender={val =>
+            readOnlyRender={(val) =>
               typeof val === "string" ? `$${numberWithCommas(val)}` : val
             }
           />

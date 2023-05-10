@@ -1,9 +1,9 @@
-import { FieldWrapper, FieldWrapperProps, useQuery } from "common-ui";
+import { FieldWrapper, FieldWrapperProps } from "common-ui";
 import { castArray } from "lodash";
 import { GroupBase } from "react-select";
 import CreatableSelect, { CreatableProps } from "react-select/creatable";
 import { useDinaIntl } from "../../intl/dina-ui-intl";
-import { Vocabulary, VocabularyElement } from "../../types/collection-api";
+import useVocabularyOptions from "./useVocabularyOptions";
 
 export interface VocabularySelectFieldProps extends FieldWrapperProps {
   path: string;
@@ -34,8 +34,8 @@ export function VocabularySelectField({
   return (
     <FieldWrapper
       // Re-initialize the component if the labels change:
-      key={vocabOptions.map(option => option.label).join()}
-      readOnlyRender={value => (
+      key={vocabOptions.map((option) => option.label).join()}
+      readOnlyRender={(value) => (
         <VocabularyReadOnlyView path={path} value={value} />
       )}
       {...labelWrapperProps}
@@ -49,7 +49,7 @@ export function VocabularySelectField({
           selected: VocabularyOption | VocabularyOption[] | null
         ) {
           const newValue = Array.isArray(selected)
-            ? selected.map(option => option.value)
+            ? selected.map((option) => option.value)
             : selected?.value;
 
           setValue(newValue);
@@ -64,10 +64,10 @@ export function VocabularySelectField({
               isMulti={isMulti}
               onChange={setFormValue}
               value={selectValue}
-              formatCreateLabel={inputValue => `Add "${inputValue}"`}
+              formatCreateLabel={(inputValue) => `Add "${inputValue}"`}
               placeholder={placeholder ?? formatMessage("selectOrType")}
               styles={{
-                control: base => ({
+                control: (base) => ({
                   ...base,
                   ...(invalid && {
                     borderColor: "rgb(148, 26, 37)",
@@ -85,27 +85,6 @@ export function VocabularySelectField({
   );
 }
 
-/** Gets the vocab options from the back-end. */
-function useVocabularyOptions({ path }) {
-  const { response, loading } = useQuery<Vocabulary>({ path });
-  const { locale } = useDinaIntl();
-
-  const vocabOptions = response?.data?.vocabularyElements?.map(toOption) ?? [];
-
-  function toOption(value: string | VocabularyElement): VocabularyOption {
-    if (typeof value === "string") {
-      return {
-        label: vocabOptions.find(it => it.value === value)?.label || value,
-        value
-      };
-    }
-    const label = value.labels?.[locale] || value.name || String(value);
-    return { label, value: value.name || label };
-  }
-
-  return { toOption, loading, vocabOptions };
-}
-
 /** Shows the values or labels if available. */
 export function VocabularyReadOnlyView({ path, value }) {
   const { toOption } = useVocabularyOptions({ path });
@@ -113,7 +92,7 @@ export function VocabularyReadOnlyView({ path, value }) {
   return value ? (
     <div>
       {castArray(value)
-        .map(text => toOption(text).label)
+        .map((text) => toOption(text).label)
         .join(", ")}
     </div>
   ) : null;

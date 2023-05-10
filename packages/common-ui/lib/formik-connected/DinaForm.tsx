@@ -8,6 +8,7 @@ import {
   FormikValues
 } from "formik";
 import { cloneDeep } from "lodash";
+import { FormTemplate } from "../../../dina-ui/types/collection-api";
 import {
   createContext,
   PropsWithChildren,
@@ -44,8 +45,22 @@ export interface DinaFormContextI {
   /** Add a checkbox beside the wrapper field if true */
   isTemplate?: boolean;
 
-  /** Optionally restrict the writable fields to this list. */
-  enabledFields?: string[] | null;
+  /**
+   * Form template with all restrictions to place on the form.
+   */
+  formTemplate?: FormTemplate;
+
+  /**
+   * The component name for all of the fields within this dina form. Using DinaFormContext you can
+   * override it.
+   */
+  componentName?: string;
+
+  /**
+   * The section name for all of the fields within this dina form. Using the DinaFormContext you can
+   * override it.
+   */
+  sectionName?: string;
 
   /**
    * @deperecated
@@ -97,7 +112,7 @@ export function DinaForm<Values extends FormikValues = FormikValues>(
     | ((formikProps: FormikProps<Values>) => React.ReactNode)
     | React.ReactNode =
     typeof childrenProp === "function" ? (
-      formikProps => <FormWrapper>{childrenProp(formikProps)}</FormWrapper>
+      (formikProps) => <FormWrapper>{childrenProp(formikProps)}</FormWrapper>
     ) : (
       <FormWrapper>{childrenProp}</FormWrapper>
     );
@@ -115,12 +130,12 @@ export function DinaForm<Values extends FormikValues = FormikValues>(
    */
   const withBulkEditCtx = useCallback<(content: JSX.Element) => JSX.Element>(
     isNestedForm
-      ? content => (
+      ? (content) => (
           <BulkEditTabContext.Provider value={null}>
             {content}
           </BulkEditTabContext.Provider>
         )
-      : content => content,
+      : (content) => content,
     [isNestedForm]
   );
 
@@ -177,7 +192,7 @@ function FormWrapper({ children }: PropsWithChildren<{}>) {
     >
       <ErrorViewer />
       <FormikConsumer>
-        {formik => (
+        {(formik) => (
           <>
             <PromptIfDirty formik={formik} />
           </>

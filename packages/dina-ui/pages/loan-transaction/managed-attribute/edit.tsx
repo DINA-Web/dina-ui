@@ -1,5 +1,6 @@
 import { useQuery, withResponse } from "common-ui";
 import { WithRouterProps } from "next/dist/client/with-router";
+import Link from "next/link";
 import { withRouter } from "next/router";
 import {
   Footer,
@@ -9,22 +10,40 @@ import {
   Nav
 } from "../../../components";
 import { DinaMessage, useDinaIntl } from "../../../intl/dina-ui-intl";
-import { ManagedAttribute } from "../../../types/collection-api/resources/ManagedAttribute";
+import { ManagedAttribute } from "../../../types/collection-api";
 
 export function ManagedAttributesEditPage({ router }: WithRouterProps) {
   const { id } = router.query;
   const { formatMessage } = useDinaIntl();
   const title = id ? "editManagedAttributeTitle" : "addManagedAttributeTitle";
 
-  const query = useQuery<ManagedAttribute>({
-    path: `loan-transaction-api/managed-attribute/${id}`
-  });
+  const query = useQuery<ManagedAttribute>(
+    {
+      path: `loan-transaction-api/managed-attribute/${id}`
+    },
+    { disabled: id === undefined }
+  );
+
+  const backButton =
+    id === undefined ? (
+      <Link href="/managed-attribute/list?step=2">
+        <a className="back-button my-auto me-auto">
+          <DinaMessage id="backToList" />
+        </a>
+      </Link>
+    ) : (
+      <Link href={`/loan-transaction/managed-attribute/view?id=${id}`}>
+        <a className="back-button my-auto me-auto">
+          <DinaMessage id="backToReadOnlyPage" />
+        </a>
+      </Link>
+    );
 
   const formProps: ManagedAttributeFormProps = {
     router,
-    postSaveRedirect: "/managed-attribute/list?tab=transaction",
+    postSaveRedirect: "/loan-transaction/managed-attribute/view",
     apiBaseUrl: "/loan-transaction-api",
-    listHref: "/managed-attribute/list?tab=transaction"
+    backButton
   };
 
   return (

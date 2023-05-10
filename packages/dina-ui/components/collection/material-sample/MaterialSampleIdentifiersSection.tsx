@@ -1,5 +1,6 @@
 import {
   CheckBoxField,
+  DinaFormSection,
   FieldSet,
   StringArrayField,
   TextField,
@@ -9,7 +10,10 @@ import { useField } from "formik";
 import { useState } from "react";
 import { CollectionSelectField } from "../..";
 import { DinaMessage } from "../../../intl/dina-ui-intl";
-import { MaterialSample } from "../../../types/collection-api";
+import {
+  IDENTIFIER_COMPONENT_NAME,
+  MaterialSample
+} from "../../../types/collection-api";
 
 export interface MaterialSampleIdentifiersSectionProps {
   disableSampleNameField?: boolean;
@@ -36,7 +40,7 @@ export function MaterialSampleIdentifiersSection({
   namePrefix = "",
   sampleNamePlaceHolder,
   hideUseSequence,
-  id = "identifiers-section"
+  id = IDENTIFIER_COMPONENT_NAME
 }: MaterialSampleIdentifiersSectionProps) {
   const [{ value }] = useField("collection");
   const { readOnly, initialValues } = useDinaFormContext();
@@ -47,15 +51,19 @@ export function MaterialSampleIdentifiersSection({
       id={id}
       legend={<DinaMessage id="identifiers" />}
       className={className}
+      componentName={IDENTIFIER_COMPONENT_NAME}
+      sectionName="identifiers-section"
     >
       <div className="row">
         <div className="col-md-6">
           <CollectionSelectField
             name={`${namePrefix}collection`}
             customName="collection"
+            disableTemplateCheckbox={true}
           />
           <div className="d-flex">
             <TextField
+              disableTemplateCheckbox={true}
               name={`${namePrefix}materialSampleName`}
               inputProps={{ disabled: primaryIdDisabled }}
               customName="materialSampleName"
@@ -65,7 +73,7 @@ export function MaterialSampleIdentifiersSection({
             />
             {!readOnly && !hideUseSequence && (
               <CheckBoxField
-                onCheckBoxClick={event =>
+                onCheckBoxClick={(event) =>
                   setPrimaryIdDisabled(event.target.checked)
                 }
                 name="useNextSequence"

@@ -41,13 +41,13 @@ export function StoredObjectGallery({
     <div className="stored-object-gallery">
       <style>{GALLERY_STYLE}</style>
       <ul className="m-3 list-inline">
-        {metadatas.map(metadata => {
+        {metadatas.map((metadata) => {
           return (
             <li className="m-1 list-inline-item align-top" key={metadata.id}>
               <GalleryItem
                 CheckBoxField={CheckBoxField}
                 highlighted={previewMetadataId === metadata.id}
-                metadata={metadata}
+                metadata={metadata as any}
                 onSelectPreviewMetadata={onSelectPreviewMetadata}
               />
             </li>
@@ -59,7 +59,7 @@ export function StoredObjectGallery({
 }
 
 interface GalleryItemProps {
-  metadata: PersistedResource<Metadata>;
+  metadata: any;
   highlighted?: boolean;
   /** The GroupedCheckBox component for selecting Metadatas to edit. */
   CheckBoxField: React.ComponentType<CheckBoxFieldProps<Metadata>>;
@@ -73,10 +73,12 @@ function GalleryItem({
   metadata,
   onSelectPreviewMetadata
 }: GalleryItemProps) {
-  const { id, acCaption, originalFilename } = metadata;
+  const { acCaption, originalFilename, bucket, fileIdentifier } =
+    metadata?.data?.attributes;
+  const { id } = metadata;
 
-  const fileId = `${metadata.fileIdentifier}/thumbnail`;
-  const filePath = `/api/objectstore-api/file/${metadata.bucket}/${fileId}`;
+  const fileId = `${fileIdentifier}/thumbnail`;
+  const filePath = `/api/objectstore-api/file/${bucket}/${fileId}`;
 
   const { formatMessage } = useDinaIntl();
 
@@ -127,6 +129,4 @@ function GalleryItem({
       </div>
     </div>
   );
-
-  return null;
 }

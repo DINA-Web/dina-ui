@@ -13,7 +13,7 @@ const TEST_COLLECTION_EVENT: CollectingEvent = {
   id: "1",
   type: "collecting-event",
   group: "test group",
-  dwcOtherRecordNumbers: ["12", "13", "14"]
+  otherRecordNumbers: ["12", "13", "14"]
 };
 
 const TEST_MATERIAL_SAMPLE: MaterialSample = {
@@ -39,13 +39,13 @@ const TEST_SAMPLE_WITH_ORGANISMS: PersistedResource<MaterialSample> = {
   ]
 };
 
-const mockGet = jest.fn<any, any>(async path => {
+const mockGet = jest.fn<any, any>(async (path) => {
   switch (path) {
     case "collection-api/material-sample/1":
       return { data: TEST_MATERIAL_SAMPLE };
     case "collection-api/material-sample/ms-with-organisms":
       return { data: TEST_SAMPLE_WITH_ORGANISMS };
-    case "collection-api/collecting-event/1?include=collectors,attachment,collectionMethod":
+    case "collection-api/collecting-event/1?include=collectors,attachment,collectionMethod,protocol":
       return { data: TEST_COLLECTION_EVENT };
     case "collection-api/collecting-event/1/attachment":
     case "user-api/group":
@@ -56,7 +56,15 @@ const mockGet = jest.fn<any, any>(async path => {
   }
 });
 
-const mockBulkGet = jest.fn<any, any>(async paths => {
+const mockPost = jest.fn<any, any>(async (path) => {
+  switch (path) {
+    // Elastic search response with object store mock metadata data.
+    case "search-api/search-ws/search":
+      return {};
+  }
+});
+
+const mockBulkGet = jest.fn<any, any>(async (paths) => {
   if (!paths.length) {
     return [];
   }
@@ -65,11 +73,14 @@ const mockBulkGet = jest.fn<any, any>(async paths => {
 const testCtx = {
   apiContext: {
     apiClient: {
-      get: mockGet
+      get: mockGet,
+      axios: {
+        post: mockPost
+      }
     },
     bulkGet: mockBulkGet
   }
-};
+} as any;
 
 describe("Material Sample View Page", () => {
   it("Renders the Material Sample with the linked Collecting Event", async () => {

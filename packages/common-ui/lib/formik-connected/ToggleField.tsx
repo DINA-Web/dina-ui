@@ -4,20 +4,26 @@ import { FieldWrapper, FieldWrapperProps } from "..";
 
 export interface ToggleFieldProps extends FieldWrapperProps {
   onChangeExternal?: (checked: boolean, formik: FormikContextType<any>) => void;
+  disableSwitch?: boolean;
 }
 
 /** Toggle UI for a boolean field. */
-export function ToggleField({ onChangeExternal, ...props }: ToggleFieldProps) {
+export function ToggleField({
+  onChangeExternal,
+  disableSwitch,
+  ...props
+}: ToggleFieldProps) {
   return (
     <FieldWrapper
       {...props}
-      readOnlyRender={value => String(!!value)}
+      readOnlyRender={(value) => String(!!value)}
       disableLabelClick={true}
     >
       {({ value, setValue, formik }) => (
         <Switch
+          disabled={disableSwitch}
           checked={!!value ?? false}
-          onChange={checked => {
+          onChange={(checked) => {
             setValue(checked);
             onChangeExternal?.(checked, formik);
           }}
@@ -36,8 +42,8 @@ export function StringToggleField({
     <FieldWrapper {...props}>
       {({ value, setValue, formik }) => (
         <Switch
-          checked={value === "true" ?? false}
-          onChange={checked => {
+          checked={(value === "true" || value === true) ?? false}
+          onChange={(checked) => {
             setValue(String(checked));
             onChangeExternal?.(checked, formik);
           }}
@@ -57,7 +63,7 @@ export function InverseToggleField({
       {({ value, setValue, formik }) => (
         <Switch
           checked={!value ?? true}
-          onChange={checked => {
+          onChange={(checked) => {
             setValue(!checked);
             onChangeExternal?.(!checked, formik);
           }}

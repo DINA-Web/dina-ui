@@ -12,7 +12,11 @@ import { DinaMessage, useDinaIntl } from "../../../intl/dina-ui-intl";
 export default function CollectingEventListPage() {
   const { formatMessage } = useDinaIntl();
 
-  const COLLECTING_EVENT_FILTER_ATTRIBUTES = ["createdBy"];
+  const COLLECTING_EVENT_FILTER_ATTRIBUTES = [
+    "createdBy",
+    "dwcFieldNumber",
+    "dwcRecordNumber"
+  ];
   const COLLECTING_EVENT_TABLE_COLUMNS = [
     {
       Cell: ({ original: { id } }) => (
@@ -26,7 +30,9 @@ export default function CollectingEventListPage() {
       Header: <DinaMessage id="viewDetails" />,
       sortable: false
     },
-    stringArrayCell("dwcOtherRecordNumbers"),
+    "dwcFieldNumber",
+    "dwcRecordNumber",
+    stringArrayCell("otherRecordNumbers"),
     "createdBy",
     "startEventDateTime",
     "endEventDateTime",
@@ -46,7 +52,7 @@ export default function CollectingEventListPage() {
           <CreateButton entityLink="/collection/collecting-event" />
         </ButtonBar>
         <ListPageLayout
-          additionalFilters={filterForm => ({
+          additionalFilters={(filterForm) => ({
             // Apply group filter:
             ...(filterForm.group && { rsql: `group==${filterForm.group}` })
           })}

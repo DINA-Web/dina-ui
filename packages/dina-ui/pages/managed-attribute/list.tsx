@@ -2,8 +2,7 @@ import { ColumnDefinition, descriptionCell, ListPageLayout } from "common-ui";
 import { useState } from "react";
 import { useRouter } from "next/router";
 import Container from "react-bootstrap/Container";
-import Tabs from "react-bootstrap/Tabs";
-import Tab from "react-bootstrap/Tab";
+import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import Card from "react-bootstrap/Card";
 import Button from "react-bootstrap/Button";
 import Link from "next/link";
@@ -15,19 +14,15 @@ import {
   COLLECTION_MODULE_TYPE_LABELS,
   ManagedAttribute,
   MANAGED_ATTRIBUTE_TYPE_OPTIONS
-} from "../../types/collection-api/resources/ManagedAttribute";
+} from "../../types/collection-api";
 
 export default function ManagedAttributesListPage() {
   const { formatMessage } = useDinaIntl();
   const router = useRouter();
 
-  // Get default tab from URL query.
-  const defaultTab: string = router.query.tab
-    ? String(router.query.tab)
-    : "collection";
-
-  // Recorded tab key state.
-  const [selectedTabKey, setSelectedTabKey] = useState(defaultTab);
+  const [currentStep, setCurrentStep] = useState<number>(
+    router.query.step ? Number(router.query.step) : 0
+  );
 
   return (
     <div>
@@ -40,31 +35,25 @@ export default function ManagedAttributesListPage() {
           </h1>
 
           <Tabs
-            activeKey={selectedTabKey}
-            onSelect={key => (key ? setSelectedTabKey(key) : null)}
-            mountOnEnter={true}
-            unmountOnExit={true}
+            selectedIndex={currentStep}
+            onSelect={setCurrentStep}
             id="managedAttributeListTab"
             className="mb-3"
           >
-            <Tab
-              eventKey="collection"
-              title={formatMessage("collectionListTitle")}
-            >
+            <TabList>
+              <Tab>{formatMessage("collectionListTitle")}</Tab>
+              <Tab>{formatMessage("objectStoreTitle")}</Tab>
+              <Tab>{formatMessage("loanTransactionsSectionTitle")}</Tab>
+            </TabList>
+            <TabPanel>
               <CollectionAttributeListView />
-            </Tab>
-            <Tab
-              eventKey="objectStore"
-              title={formatMessage("objectStoreTitle")}
-            >
+            </TabPanel>
+            <TabPanel>
               <ObjectStoreAttributeListView />
-            </Tab>
-            <Tab
-              eventKey="transaction"
-              title={formatMessage("loanTransactionsSectionTitle")}
-            >
+            </TabPanel>
+            <TabPanel>
               <TransactionAttributeListView />
-            </Tab>
+            </TabPanel>
           </Tabs>
         </Container>
       </main>
@@ -81,9 +70,11 @@ function CreateNewSection({ href }: CreateButtonProps) {
   return (
     <Card bg="light" className="mb-4">
       <Card.Body>
-        <Button href={href} variant="info" className="mx-1 my-1">
-          <DinaMessage id="createNewLabel" />
-        </Button>
+        <Link href={href} passHref={true}>
+          <Button variant="info" className="mx-1 my-1">
+            <DinaMessage id="createNewLabel" />
+          </Button>
+        </Link>
       </Card.Body>
     </Card>
   );
@@ -99,21 +90,22 @@ function CollectionAttributeListView() {
   >[] = [
     {
       Cell: ({ original: { id, name } }) => (
-        <Link href={`/collection/managed-attribute/edit?id=${id}`}>
+        <Link href={`/collection/managed-attribute/view?id=${id}`}>
           <a>{name}</a>
         </Link>
       ),
       Header: "Name",
       accessor: "name"
     },
-    "createdBy",
     {
       Cell: ({ original }) => {
         const ma: ManagedAttribute<CollectionModuleType> = original;
         return (
           <div>
             {formatMessage(
-              COLLECTION_MODULE_TYPE_LABELS[ma.managedAttributeComponent] as any
+              COLLECTION_MODULE_TYPE_LABELS[
+                ma.managedAttributeComponent ?? "MATERIAL_SAMPLE"
+              ] as any
             )}
           </div>
         );
@@ -121,28 +113,29 @@ function CollectionAttributeListView() {
       accessor: "managedAttributeComponent"
     },
     {
-      Cell: ({ original: { acceptedValues, managedAttributeType } }) => {
+      Cell: ({ original: { acceptedValues, vocabularyElementType } }) => {
         const labelKey: keyof typeof DINAUI_MESSAGES_ENGLISH | undefined =
           acceptedValues?.length
-            ? "field_managedAttributeType_picklist_label"
+            ? "field_vocabularyElementType_picklist_label"
             : MANAGED_ATTRIBUTE_TYPE_OPTIONS.find(
-                option => option.value === managedAttributeType
+                (option) => option.value === vocabularyElementType
               )?.labelKey;
 
         return <div>{labelKey && <DinaMessage id={labelKey} />}</div>;
       },
-      accessor: "managedAttributeType",
+      accessor: "vocabularyElementType",
       // The API sorts alphabetically by key, not displayed intl-ized value,
       // so the displayed order wouldn't make sense.
       sortable: false
     },
     {
       Cell: ({ original: { acceptedValues } }) => (
-        <div>{acceptedValues?.map(val => `"${val}"`)?.join(", ")}</div>
+        <div>{acceptedValues?.map((val) => `"${val}"`)?.join(", ")}</div>
       ),
       accessor: "acceptedValues"
     },
-    descriptionCell("multilingualDescription")
+    descriptionCell("multilingualDescription"),
+    "createdBy"
   ];
 
   return (
@@ -173,39 +166,37 @@ function ObjectStoreAttributeListView() {
     [
       {
         Cell: ({ original: { id, name } }) => (
-          <Link
-            href={`/object-store/managedAttributesView/detailsView?id=${id}`}
-          >
+          <Link href={`/object-store/managed-attribute/view?id=${id}`}>
             <a>{name}</a>
           </Link>
         ),
         Header: "Name",
         accessor: "name"
       },
-      "createdBy",
       descriptionCell("multilingualDescription"),
       {
-        Cell: ({ original: { acceptedValues, managedAttributeType } }) => {
+        Cell: ({ original: { acceptedValues, vocabularyElementType } }) => {
           const labelKey: keyof typeof DINAUI_MESSAGES_ENGLISH | undefined =
             acceptedValues?.length
-              ? "field_managedAttributeType_picklist_label"
+              ? "field_vocabularyElementType_picklist_label"
               : MANAGED_ATTRIBUTE_TYPE_OPTIONS.find(
-                  option => option.value === managedAttributeType
+                  (option) => option.value === vocabularyElementType
                 )?.labelKey;
 
           return <div>{labelKey && <DinaMessage id={labelKey} />}</div>;
         },
-        accessor: "managedAttributeType",
+        accessor: "vocabularyElementType",
         // The API sorts alphabetically by key, not displayed intl-ized value,
         // so the displayed order wouldn't make sense.
         sortable: false
       },
       {
         Cell: ({ original: { acceptedValues } }) => (
-          <div>{acceptedValues?.map(val => `"${val}"`)?.join(", ")}</div>
+          <div>{acceptedValues?.map((val) => `"${val}"`)?.join(", ")}</div>
         ),
         accessor: "acceptedValues"
-      }
+      },
+      "createdBy"
     ];
 
   return (
@@ -215,7 +206,7 @@ function ObjectStoreAttributeListView() {
       </h3>
 
       {/* Quick create menu */}
-      <CreateNewSection href="/object-store/managedAttributesView/detailsView" />
+      <CreateNewSection href="/object-store/managed-attribute/edit" />
 
       <ListPageLayout
         filterAttributes={OBJECT_STORE_ATTRIBUTES_FILTER_ATTRIBUTES}
@@ -236,37 +227,37 @@ function TransactionAttributeListView() {
     [
       {
         Cell: ({ original: { id, name } }) => (
-          <Link href={`/loan-transaction/managed-attribute/edit?id=${id}`}>
+          <Link href={`/loan-transaction/managed-attribute/view?id=${id}`}>
             <a>{name}</a>
           </Link>
         ),
         Header: "Name",
         accessor: "name"
       },
-      "createdBy",
       {
-        Cell: ({ original: { acceptedValues, managedAttributeType } }) => {
+        Cell: ({ original: { acceptedValues, vocabularyElementType } }) => {
           const labelKey: keyof typeof DINAUI_MESSAGES_ENGLISH | undefined =
             acceptedValues?.length
-              ? "field_managedAttributeType_picklist_label"
+              ? "field_vocabularyElementType_picklist_label"
               : MANAGED_ATTRIBUTE_TYPE_OPTIONS.find(
-                  option => option.value === managedAttributeType
+                  (option) => option.value === vocabularyElementType
                 )?.labelKey;
 
           return <div>{labelKey && <DinaMessage id={labelKey} />}</div>;
         },
-        accessor: "managedAttributeType",
+        accessor: "vocabularyElementType",
         // The API sorts alphabetically by key, not displayed intl-ized value,
         // so the displayed order wouldn't make sense.
         sortable: false
       },
       {
         Cell: ({ original: { acceptedValues } }) => (
-          <div>{acceptedValues?.map(val => `"${val}"`)?.join(", ")}</div>
+          <div>{acceptedValues?.map((val) => `"${val}"`)?.join(", ")}</div>
         ),
         accessor: "acceptedValues"
       },
-      descriptionCell("multilingualDescription")
+      descriptionCell("multilingualDescription"),
+      "createdBy"
     ];
 
   return (

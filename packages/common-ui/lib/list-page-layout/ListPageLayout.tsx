@@ -32,10 +32,8 @@ export interface ListPageLayoutProps<TData extends KitsuResource> {
   wrapTable?: (children: ReactNode) => ReactNode;
 
   /** Adds the bulk edit button and the row checkboxes. */
-  bulkEditPath?: (ids: string[]) => {
-    pathname: string;
-    query: Record<string, string>;
-  };
+  bulkEditPath?: string;
+
   /** Adds the bulk delete button and the row checkboxes. */
   bulkDeleteButtonProps?: BulkDeleteButtonProps;
 }
@@ -55,7 +53,7 @@ export function ListPageLayout<TData extends KitsuResource>({
   filterFormchildren,
   id,
   queryTableProps,
-  wrapTable = children => children,
+  wrapTable = (children) => children,
   bulkDeleteButtonProps,
   bulkEditPath
 }: ListPageLayoutProps<TData>) {
@@ -147,12 +145,12 @@ export function ListPageLayout<TData extends KitsuResource>({
       defaultPageSize={defaultPageSize ?? undefined}
       defaultSort={defaultSort ?? undefined}
       filter={filterParam}
-      onPageSizeChange={newSize => setDefaultPageSize(newSize)}
-      onSortedChange={newSort => setStoredDefaultSort(newSort)}
+      onPageSizeChange={(newSize) => setDefaultPageSize(newSize)}
+      onSortedChange={(newSort) => setStoredDefaultSort(newSort)}
       {...resolvedQueryTableProps}
       topRightCorner={
         <div className="d-flex gap-3">
-          {bulkEditPath && <BulkEditButton bulkEditPath={bulkEditPath} />}
+          {bulkEditPath && <BulkEditButton pathname={bulkEditPath} />}
           {bulkDeleteButtonProps && (
             <BulkDeleteButton {...bulkDeleteButtonProps} />
           )}
@@ -165,9 +163,7 @@ export function ListPageLayout<TData extends KitsuResource>({
 
   /** Wrap the table in a form when checkboxes are enabled. */
   const tableWrappedInForm = showRowCheckboxes ? (
-    <DinaForm<BulkSelectableFormValues>
-      initialValues={{ selectedResources: {} }}
-    >
+    <DinaForm<BulkSelectableFormValues> initialValues={{ itemIdsToSelect: {} }}>
       {tableElement}
     </DinaForm>
   ) : (
@@ -187,5 +183,5 @@ export function ListPageLayout<TData extends KitsuResource>({
 }
 
 export interface BulkSelectableFormValues {
-  selectedResources: Record<string, boolean>;
+  itemIdsToSelect: Record<string, boolean>;
 }

@@ -4,10 +4,13 @@ export interface VocabularyAttributes {
   vocabularyElements?: VocabularyElement[];
 }
 
+export type MultilingualTitle = { lang: string; title: string };
+
 export interface VocabularyElement {
+  key: string;
   name?: string;
   term?: string;
-  labels?: Record<string, string | undefined>;
+  multilingualTitle?: { titles?: MultilingualTitle[] };
 }
 
 export type Vocabulary = KitsuResource & VocabularyAttributes;

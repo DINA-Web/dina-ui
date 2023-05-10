@@ -1,21 +1,21 @@
 import {
   filterBy,
-  MetaWithTotal,
   ResourceSelectField,
   ResourceSelectFieldProps,
   useAccount,
-  useQuery,
-  withResponse
+  useAutocompleteSearchButFallbackToRsqlApiSearch
 } from "common-ui";
-import { useField } from "formik";
 import { SetOptional } from "type-fest";
 import { useAddPersonModal } from "..";
 import { DinaMessage } from "../../intl/dina-ui-intl";
-import { Collection, Institution } from "../../types/collection-api";
+import {
+  Collection,
+  Institution,
+  StorageUnit
+} from "../../types/collection-api";
 import { CollectionMethod } from "../../types/collection-api/resources/CollectionMethod";
 import { Person } from "../../types/objectstore-api";
 import { DinaUser } from "../../types/user-api/resources/DinaUser";
-import { useAutocompleteSearchButFallbackToRsqlApiSearch } from "../search/useAutocompleteSearchButFallbackToRsqlApiSearch";
 
 type ProvidedProps = "readOnlyLink" | "filter" | "model" | "optionLabel";
 
@@ -27,7 +27,7 @@ export function CollectionMethodSelectField(
       readOnlyLink="/collection/collection-method/view?id="
       filter={filterBy(["name"])}
       model="collection-api/collection-method"
-      optionLabel={cm => cm.name}
+      optionLabel={(cm) => cm.name}
       {...props}
     />
   );
@@ -37,7 +37,6 @@ export function CollectionMethodSelectField(
 export function CollectionSelectField(
   props: SetOptional<ResourceSelectFieldProps<Collection>, ProvidedProps>
 ) {
-  const [{ value }] = useField(props.name);
   const { isAdmin, groupNames } = useAccount();
 
   const filter = filterBy(
@@ -56,31 +55,20 @@ export function CollectionSelectField(
       : undefined
   );
 
-  const collectionQuery = useQuery<Collection[], MetaWithTotal>({
-    path: "collection-api/collection",
-    filter: filter("")
-  });
-
-  return withResponse(collectionQuery, ({ data, meta }) => {
-    // Disable this input when the collection set is the only one available:
-    const collectionCannotBeChanged =
-      !isAdmin && meta?.totalResourceCount === 1 && data[0].id === value?.id;
-
-    return (
-      <ResourceSelectField<Collection>
-        key={String(isAdmin)}
-        readOnlyLink="/collection/collection/view?id="
-        filter={filter}
-        model="collection-api/collection"
-        optionLabel={coll =>
-          `${coll.name || coll.id}${coll.code ? ` (${coll.code})` : ""}`
-        }
-        isDisabled={collectionCannotBeChanged}
-        omitNullOption={true}
-        {...props}
-      />
-    );
-  });
+  return (
+    <ResourceSelectField<Collection>
+      key={String(isAdmin)}
+      readOnlyLink="/collection/collection/view?id="
+      filter={filter}
+      model="collection-api/collection"
+      optionLabel={(coll) =>
+        `${coll.name || coll.id}${coll.code ? ` (${coll.code})` : ""}`
+      }
+      cannotBeChanged={true}
+      omitNullOption={true}
+      {...props}
+    />
+  );
 }
 
 export function InstitutionSelectField(
@@ -91,7 +79,7 @@ export function InstitutionSelectField(
       readOnlyLink="/collection/institution/view?id="
       filter={filterBy(["name"])}
       model="collection-api/institution"
-      optionLabel={inst => inst.name || inst.id}
+      optionLabel={(inst) => inst.name || inst.id}
       {...props}
     />
   );
@@ -104,7 +92,7 @@ export function UserSelectField(
     <ResourceSelectField<DinaUser>
       readOnlyLink="/dina-user/view?id="
       model="user-api/user"
-      optionLabel={user => user.username}
+      optionLabel={(user) => user.username}
       // TODO allow filtering by group
       filter={() => ({})}
       pageSize={1000}
@@ -127,7 +115,7 @@ export function PersonSelectField(
           searchQuery,
           querySpec,
           indexName: "dina_agent_index",
-          searchField: "displayName",
+          searchField: "data.attributes.displayName",
           additionalField: "data.attributes.aliases"
         })
       }
@@ -135,11 +123,13 @@ export function PersonSelectField(
       filter={filterBy(["displayName"])}
       model="agent-api/person"
       // Show display name, and show aliases if any:
-      optionLabel={person =>
-        `${person.displayName}${
-          person.aliases?.length ? ` (${person.aliases.join(", ")})` : ""
-        }`
-      }
+      optionLabel={(person) => {
+        return person.displayName
+          ? `${person.displayName}${
+              person.aliases?.length ? ` (${person.aliases.join(", ")})` : ""
+            }`
+          : null;
+      }}
       asyncOptions={[
         {
           label: <DinaMessage id="addNewPerson" />,
@@ -147,6 +137,45 @@ export function PersonSelectField(
         }
       ]}
       {...props}
+    />
+  );
+}
+
+interface StorageUnitSelectFieldProps {
+  resourceProps: SetOptional<
+    ResourceSelectFieldProps<StorageUnit>,
+    ProvidedProps
+  >;
+  restrictedField: string;
+  restrictedFieldValue: string;
+}
+
+export function StorageUnitSelectField({
+  resourceProps,
+  restrictedField,
+  restrictedFieldValue
+}: StorageUnitSelectFieldProps) {
+  return (
+    <ResourceSelectField<StorageUnit>
+      // Experimental: try to use the dina-search-api autocomplete endpoint to get the data
+      // but fallback to the regular RSQL search if that fails.
+      useCustomQuery={(searchQuery, querySpec) =>
+        useAutocompleteSearchButFallbackToRsqlApiSearch({
+          searchQuery,
+          querySpec,
+          indexName: "dina_storage_index",
+          searchField: "data.attributes.name",
+          restrictedField,
+          restrictedFieldValue
+        })
+      }
+      readOnlyLink="/storageUnit/view?id="
+      filter={filterBy(["name"])}
+      model="collection-api/storage-unit"
+      optionLabel={(storageUnit) => {
+        return storageUnit.name;
+      }}
+      {...resourceProps}
     />
   );
 }

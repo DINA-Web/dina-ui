@@ -15,7 +15,7 @@ import { Footer, GroupSelectField, Head, Nav } from "../../../components";
 import { DinaMessage, useDinaIntl } from "../../../intl/dina-ui-intl";
 import { MaterialSample } from "../../../types/collection-api";
 import { useState } from "react";
-import { TableColumn } from "packages/common-ui/lib/list-page/types";
+import { TableColumn } from "common-ui/lib/list-page/types";
 
 export interface SampleListLayoutProps {
   onSelect?: (sample: PersistedResource<MaterialSample>) => void;
@@ -37,9 +37,14 @@ export const getColumnDefinition = () => {
       Cell: ({
         original: { id, materialSampleName, dwcOtherCatalogNumbers }
       }) => (
-        <a href={`/collection/material-sample/view?id=${id}`}>
-          {materialSampleName || dwcOtherCatalogNumbers?.join?.(", ") || id}
-        </a>
+        <Link
+          href={`/collection/material-sample/view?id=${id}`}
+          passHref={true}
+        >
+          <a>
+            {materialSampleName || dwcOtherCatalogNumbers?.join?.(", ") || id}
+          </a>
+        </Link>
       ),
       accessor: "materialSampleName"
     },
@@ -133,7 +138,7 @@ export function SampleListLayout({
   ];
   return (
     <ListPageLayout
-      additionalFilters={filterForm => ({
+      additionalFilters={(filterForm) => ({
         // Apply group filter:
         ...(filterForm.group && { rsql: `group==${filterForm.group}` })
       })}
@@ -170,12 +175,7 @@ export function SampleListLayout({
           : undefined
       }
       bulkEditPath={
-        showBulkActions
-          ? ids => ({
-              pathname: "/collection/material-sample/bulk-edit",
-              query: { ids: ids.join(",") }
-            })
-          : undefined
+        showBulkActions ? "/collection/material-sample/bulk-edit" : undefined
       }
     />
   );
@@ -189,11 +189,16 @@ export default function MaterialSampleListPage() {
     // Material Sample Name
     {
       Cell: ({ original: { id, data } }) => (
-        <a href={`/collection/material-sample/view?id=${id}`}>
-          {data?.attributes?.materialSampleName ||
-            data?.attributes?.dwcOtherCatalogNumbers?.join?.(", ") ||
-            id}
-        </a>
+        <Link
+          href={`/collection/material-sample/view?id=${id}`}
+          passHref={true}
+        >
+          <a>
+            {data?.attributes?.materialSampleName ||
+              data?.attributes?.dwcOtherCatalogNumbers?.join?.(", ") ||
+              id}
+          </a>
+        </Link>
       ),
       label: "materialSampleName",
       accessor: "data.attributes.materialSampleName",
@@ -286,15 +291,86 @@ export default function MaterialSampleListPage() {
         </ButtonBar>
         <QueryPage
           indexName={"dina_material_sample_index"}
+          dynamicFieldMapping={{
+            fields: [
+              // Managed Attributes
+              {
+                type: "managedAttribute",
+                label: "managedAttributes",
+                component: "MATERIAL_SAMPLE",
+                path: "data.attributes.managedAttributes",
+                apiEndpoint: "collection-api/managed-attribute"
+              },
+
+              // Field Extensions
+              {
+                type: "fieldExtension",
+                label: "fieldExtensions",
+                component: "MATERIAL_SAMPLE",
+                path: "data.attributes.extensionValues",
+                apiEndpoint: "collection-api/extension"
+              },
+
+              // Restrictions
+              {
+                type: "fieldExtension",
+                label: "restrictions",
+                component: "RESTRICTION",
+                path: "data.attributes.restrictionFieldsExtension",
+                apiEndpoint: "collection-api/extension"
+              }
+            ],
+            relationshipFields: [
+              // Assemblage
+              {
+                type: "managedAttribute",
+                label: "managedAttributes",
+                component: "ASSEMBLAGE",
+                path: "included.attributes.managedAttributes",
+                referencedBy: "assemblages",
+                referencedType: "assemblage",
+                apiEndpoint: "collection-api/managed-attribute"
+              },
+
+              // Collecting Event
+              {
+                type: "managedAttribute",
+                label: "managedAttributes",
+                component: "COLLECTING_EVENT",
+                path: "included.attributes.managedAttributes",
+                referencedBy: "collectingEvent",
+                referencedType: "collecting-event",
+                apiEndpoint: "collection-api/managed-attribute"
+              },
+              {
+                type: "fieldExtension",
+                label: "fieldExtensions",
+                component: "COLLECTING_EVENT",
+                path: "included.attributes.extensionValues",
+                referencedBy: "collectingEvent",
+                referencedType: "collecting-event",
+                apiEndpoint: "collection-api/extension"
+              },
+
+              // Determination
+              {
+                type: "managedAttribute",
+                label: "managedAttributes",
+                component: "DETERMINATION",
+                path: "included.attributes.determination.managedAttributes",
+                referencedBy: "organism",
+                referencedType: "organism",
+                apiEndpoint: "collection-api/managed-attribute"
+              }
+            ]
+          }}
           columns={columns}
           bulkDeleteButtonProps={{
             typeName: "material-sample",
             apiBaseUrl: "/collection-api"
           }}
-          bulkEditPath={ids => ({
-            pathname: "/collection/material-sample/bulk-edit",
-            query: { ids: ids.join(",") }
-          })}
+          bulkEditPath="/collection/material-sample/bulk-edit"
+          // bulkSplitPath="/collection/material-sample/bulk-split"
         />
       </main>
       <Footer />

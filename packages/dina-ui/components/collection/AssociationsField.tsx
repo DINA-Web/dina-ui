@@ -1,26 +1,33 @@
 import { FieldSet, TextField } from "common-ui";
-import { CatalogueOfLifeNameField } from "..";
-import { HostOrganism } from "../../../dina-ui/types/collection-api";
+import {
+  ASSOCIATIONS_COMPONENT_NAME,
+  HostOrganism
+} from "../../../dina-ui/types/collection-api";
 import { DinaMessage } from "../../intl/dina-ui-intl";
 import { AssociationsHostField } from "./AssociationsHostField";
 import { MaterialSampleAssociationsField } from "./MaterialSampleAssociationsField";
 
-/** Type-safe object with all hostotganism fields. */
-export const HOSTORGANISM_FIELDS_OBJECT: Required<
+/** Type-safe object with all host organism fields. */
+export const HOST_ORGANISM_FIELDS_OBJECT: Required<
   Record<keyof HostOrganism, true>
 > = {
   name: true,
   remarks: true
 };
 
-export const HOSTORGANISM_FIELDS = Object.keys(HOSTORGANISM_FIELDS_OBJECT);
+export const HOST_ORGANISM_FIELDS = Object.keys(HOST_ORGANISM_FIELDS_OBJECT);
 
-export function AssociationsField({ id = "associations-section" }) {
+export function AssociationsField({ id = ASSOCIATIONS_COMPONENT_NAME }) {
   return (
-    <FieldSet legend={<DinaMessage id="associationsLegend" />} id={id}>
+    <FieldSet
+      legend={<DinaMessage id="associationsLegend" />}
+      id={id}
+      componentName={ASSOCIATIONS_COMPONENT_NAME}
+    >
       <FieldSet
         legend={<DinaMessage id="hostOrganismLegend" />}
         className="non-strip"
+        sectionName="associations-host-organism-section"
       >
         <div className="row">
           <div className="col-md-6">

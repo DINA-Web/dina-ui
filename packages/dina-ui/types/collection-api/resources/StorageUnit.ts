@@ -11,11 +11,14 @@ export interface StorageUnitAttributes {
   storageUnitChildren?: StorageUnit[];
   uuid?: string;
   isMultiple?: boolean | null;
+  barcode?: string;
 }
 
 export interface HierarchyItem {
+  organismPrimaryDetermination?: any;
   uuid: string;
   name: string;
+  rank?: number;
 }
 
 export interface StorageHierarchyItem extends HierarchyItem {

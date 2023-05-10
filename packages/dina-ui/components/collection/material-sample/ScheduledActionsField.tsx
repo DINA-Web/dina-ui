@@ -7,6 +7,7 @@ import {
   FieldSet,
   FieldSpy,
   FormikButton,
+  JsonApiQuerySpec,
   OnFormikSubmit,
   TextField,
   useDinaFormContext
@@ -18,7 +19,11 @@ import ReactTable, { CellInfo, Column } from "react-table";
 import * as yup from "yup";
 import { UserSelectField } from "../..";
 import { DinaMessage, useDinaIntl } from "../../../intl/dina-ui-intl";
-import { MaterialSample, ScheduledAction } from "../../../types/collection-api";
+import {
+  MaterialSample,
+  ScheduledAction,
+  SCHEDULED_ACTIONS_COMPONENT_NAME
+} from "../../../types/collection-api";
 
 /** Type-safe object with all ScheduledAction fields. */
 export const SCHEDULEDACTION_FIELDS_OBJECT: Required<
@@ -51,8 +56,8 @@ export function ScheduledActionsField({
   className,
   // The default date is today:
   defaultDate = new Date().toISOString().slice(0, 10),
-  wrapContent = content => content,
-  id = "scheduled-actions-section"
+  wrapContent = (content) => content,
+  id = SCHEDULED_ACTIONS_COMPONENT_NAME
 }: ScheduledActionsFieldProps) {
   const fieldName = "scheduledActions";
 
@@ -92,7 +97,7 @@ export function ScheduledActionsField({
     {
       accessor: "assignedTo",
       Header: formatMessage("assignedTo"),
-      Cell: row => (
+      Cell: (row) => (
         <DinaFormSection readOnly={true}>
           <UserSelectField
             name={`${fieldName}[${row.index}].assignedTo`}
@@ -106,7 +111,7 @@ export function ScheduledActionsField({
       ? []
       : [
           {
-            Cell: row => (
+            Cell: (row) => (
               <div className={`d-flex gap-3 index-${row.index}`}>
                 <FormikButton
                   className="btn btn-primary mb-3 edit-button"
@@ -134,6 +139,8 @@ export function ScheduledActionsField({
       id={id}
       legend={<DinaMessage id="scheduledActions" />}
       fieldName={fieldName}
+      componentName={SCHEDULED_ACTIONS_COMPONENT_NAME}
+      sectionName="scheduled-actions-add-section"
     >
       {wrapContent(
         <FieldSpy fieldName={fieldName}>
@@ -176,7 +183,7 @@ export function ScheduledActionsField({
                         ? { [actionToEdit?.viewIndex ?? -1]: true }
                         : undefined
                     }
-                    SubComponent={row => (
+                    SubComponent={(row) => (
                       <div className="m-2">
                         <ScheduledActionSubForm
                           actionToEdit={row.original}
@@ -230,9 +237,12 @@ export function ScheduledActionSubForm({
   actionToEdit,
   defaultDate
 }: ScheduledActionSubFormProps) {
-  const { enabledFields, initialValues, isTemplate } = useDinaFormContext();
+  const { formTemplate, initialValues, isTemplate } = useDinaFormContext();
 
-  const actionsEnabledFields = enabledFields?.filter(it =>
+  // TODO: This needs to be fixed.
+  const enabledFields: string[] = [];
+
+  const actionsEnabledFields = enabledFields?.filter((it) =>
     it.startsWith("scheduledAction.")
   );
 
@@ -275,10 +285,10 @@ export function ScheduledActionSubForm({
 
   // Fetch the last 50 scheduled actions.
   // No filtering by search text yet due to API limitations. The future search API should provide better autocomplete support.
-  const autoSuggestQuery: AutoSuggestTextFieldProps<MaterialSample>["query"] = (
-    _,
-    ctx
-  ) => ({
+  const autoSuggestQuery: (
+    searchTerm: string,
+    formikCtx: FormikContextType<any>
+  ) => JsonApiQuerySpec = (_, ctx) => ({
     path: "collection-api/material-sample",
     fields: { "material-sample": "scheduledActions" },
     filter: {
@@ -300,16 +310,20 @@ export function ScheduledActionSubForm({
           initialValues={
             actionToEdit ?? actionTemplateInitialValues ?? defaultInitialValues
           }
-          enabledFields={actionsEnabledFields}
+          componentName={SCHEDULED_ACTIONS_COMPONENT_NAME}
+          sectionName="scheduled-actions-add-section"
         >
           <div className="row">
             <AutoSuggestTextField<MaterialSample>
               {...fieldProps("actionType")}
-              query={autoSuggestQuery}
-              suggestion={matSample =>
-                matSample.scheduledActions?.map(it => it?.actionType)
-              }
-              alwaysShowSuggestions={true}
+              jsonApiBackend={{
+                query: autoSuggestQuery,
+                option: (matSample) =>
+                  matSample?.scheduledActions?.map(
+                    (it) => it?.actionType ?? ""
+                  ) ?? ""
+              }}
+              blankSearchBackend={"json-api"}
               className="col-sm-6"
             />
             <DateField {...fieldProps("date")} className="col-sm-6" />
@@ -317,11 +331,14 @@ export function ScheduledActionSubForm({
           <div className="row">
             <AutoSuggestTextField<MaterialSample>
               {...fieldProps("actionStatus")}
-              query={autoSuggestQuery}
-              suggestion={matSample =>
-                matSample.scheduledActions?.map(it => it?.actionStatus)
-              }
-              alwaysShowSuggestions={true}
+              jsonApiBackend={{
+                query: autoSuggestQuery,
+                option: (matSample) =>
+                  matSample?.scheduledActions?.map(
+                    (it) => it?.actionStatus ?? ""
+                  ) ?? ""
+              }}
+              blankSearchBackend={"json-api"}
               className="col-sm-6"
             />
             <UserSelectField

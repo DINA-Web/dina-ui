@@ -31,6 +31,8 @@ export const COMMON_UI_MESSAGES_ENGLISH = {
   createNew: "Create New",
   created: "created",
   date: "Date",
+  dateMustBeFormattedPartial:
+    "Data must be formatted as one of the following options: YYYY-MM-DD, YYYY-MM, or YYYY",
   dateMustBeFormattedYyyyMmDd: "Date must be formatted as YYYY-MM-DD",
   deleteAllButtonText: "Delete All",
   deleteButtonText: "Delete",
@@ -44,6 +46,7 @@ export const COMMON_UI_MESSAGES_ENGLISH = {
   editAll: "Edit All",
   editButtonText: "Edit",
   editSelectedButtonText: "Edit Selected",
+  splitSelectedButtonText: "Split Selected",
   editableTable: "Editable Table",
   edited: "edited",
   errorPageTitle: "Error",
@@ -128,6 +131,7 @@ export const COMMON_UI_MESSAGES_ENGLISH = {
   subjectTermsForPage:
     "government information, scientific information, scientific research",
   submitBtnText: "Save",
+  tableSelectedCount: "Total selected records: {totalCount}",
   tableTotalCount: "Total matched records: {totalCount}",
   targetField: "Target Field",
   text: "Text",
