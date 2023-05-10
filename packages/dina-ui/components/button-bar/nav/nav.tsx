@@ -318,9 +318,6 @@ function NavSequenceDropdown({ formatMessage }) {
       <NavDropdown.Item href="/seqdb/product/list">
         <SeqdbMessage id="productListTitle" />
       </NavDropdown.Item>
-      <NavDropdown.Item href="/seqdb/protocol/list">
-        <SeqdbMessage id="protocolListTitle" />
-      </NavDropdown.Item>
       <NavDropdown.Item href="/seqdb/region/list">
         <SeqdbMessage id="regionListTitle" />
       </NavDropdown.Item>
@@ -377,6 +374,9 @@ function NavDinaManagementDropdown({ formatMessage }) {
       </NavDropdown.Item>
       <NavDropdown.Item href="/collection/project/list">
         <DinaMessage id="projectListTitle" />
+      </NavDropdown.Item>
+      <NavDropdown.Item href="/collection/protocol/list">
+        <DinaMessage id="protocolListTitle" />
       </NavDropdown.Item>
       <NavDropdown.Item
         href="/collection/storage-unit-type/list"
